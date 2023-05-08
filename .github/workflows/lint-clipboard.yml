@@ -1,6 +1,9 @@
 name: Clipboard Linting
 
-on: [ push, pull_request ]
+on:
+  workflow_dispatch
+#on: [ push, pull_request ]
+
 jobs:
   clang-format:    
     runs-on: ubuntu-22.04

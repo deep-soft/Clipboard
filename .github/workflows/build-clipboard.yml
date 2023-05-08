@@ -1,6 +1,9 @@
 name: Clipboard Builds
 
-on: [ push, pull_request ]
+on:
+  workflow_dispatch
+# on: [ push, pull_request ]
+
 jobs:
   linux_x11_wayland:
     strategy:
