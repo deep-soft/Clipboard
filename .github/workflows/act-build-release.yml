@@ -64,13 +64,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: clipboard-linux-${{ matrix.arch.os }}
+          name: cb-linux-${{ matrix.arch.os }}
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="clipboard-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -81,7 +81,7 @@ jobs:
           pwd
           ls -l
           cd ./build/output/bin/
-          tar --exclude=*.tar* -cv clipboard* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
           cd
           pwd
           ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
@@ -115,13 +115,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: clipboard-macos-arm64-amd64
+          name: cb-macos-arm64-amd64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="clipboard-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -132,7 +132,7 @@ jobs:
           pwd
           ls -l
           cd ./build/output/bin/
-          tar --exclude=*.tar* -cv clipboard* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
           cd
           pwd
           ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
@@ -166,13 +166,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: clipboard-windows-amd64
+          name: cb-windows-amd64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="clipboard-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -183,7 +183,7 @@ jobs:
           pwd
           ls -l
           cd ./build/output/bin/
-          tar --exclude=*.tar* -cv clipboard* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
           cd
           pwd
           ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
@@ -217,13 +217,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: clipboard-windows-arm64
+          name: cb-windows-arm64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="clipboard-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -234,7 +234,7 @@ jobs:
           pwd
           ls -l
           cd ./build/output/bin/
-          tar --exclude=*.tar* -cv clipboard* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
           cd
           pwd
           ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
@@ -276,13 +276,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: clipboard-freebsd-amd64
+          name: cb-freebsd-amd64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="clipboard-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -293,7 +293,7 @@ jobs:
           pwd
           ls -l
           cd ./build/output/bin/
-          tar --exclude=*.tar* -cv clipboard* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
           cd
           pwd
           ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
@@ -334,13 +334,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: clipboard-openbsd-amd64
+          name: cb-openbsd-amd64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="clipboard-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -351,7 +351,7 @@ jobs:
           pwd
           ls -l
           cd ./build/output/bin/
-          tar --exclude=*.tar* -cv clipboard* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
           cd
           pwd
           ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
@@ -392,13 +392,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: clipboard-openbsd-arm64
+          name: cb-openbsd-arm64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="clipboard-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -409,7 +409,7 @@ jobs:
           pwd
           ls -l
           cd ./build/output/bin/
-          tar --exclude=*.tar* -cv clipboard* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
           cd
           pwd
           ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
@@ -450,13 +450,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: clipboard-netbsd-amd64
+          name: cb-netbsd-amd64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="clipboard-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -467,7 +467,7 @@ jobs:
           pwd
           ls -l
           cd ./build/output/bin/
-          tar --exclude=*.tar* -cv clipboard* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
           cd
           pwd
           ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
