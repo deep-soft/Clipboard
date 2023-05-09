@@ -1,4 +1,4 @@
-# 2023-04-09 19:00
+# 2023-05-09 07:50
 name: act - Clipboard Builds - release
 
 on:
@@ -7,6 +7,7 @@ on:
 
 env:
   TAG_NAME: clipboard-release
+  PRG_NAME: clipboard
 
 jobs:
   linux_x11_wayland:
@@ -64,13 +65,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: cb-linux-${{ matrix.arch.os }}
+          name: ${{ env.PRG_NAME }}-linux-${{ matrix.arch.os }}
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -115,13 +116,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: cb-macos-arm64-amd64
+          name: ${{ env.PRG_NAME }}-macos-arm64-amd64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -166,13 +167,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: cb-windows-amd64
+          name: ${{ env.PRG_NAME }}-windows-amd64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -217,13 +218,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: cb-windows-arm64
+          name: ${{ env.PRG_NAME }}-windows-arm64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -276,13 +277,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: cb-freebsd-amd64
+          name: ${{ env.PRG_NAME }}-freebsd-amd64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -334,13 +335,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: cb-openbsd-amd64
+          name: ${{ env.PRG_NAME }}-openbsd-amd64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -392,13 +393,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: cb-openbsd-arm64
+          name: ${{ env.PRG_NAME }}-openbsd-arm64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
@@ -450,13 +451,13 @@ jobs:
 
       - uses: actions/upload-artifact@v3
         with:
-          name: cb-netbsd-amd64
+          name: ${{ env.PRG_NAME }}-netbsd-amd64
           path: build/output
 
       - name: Publish Release pre 1
         shell: bash
         run: |
-          staging="cb-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
           echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
           echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
 
