@@ -14,6 +14,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.*/
 #include "clipboard.hpp"
 #include <clipboard/logging.hpp>
+#include <cstring>
 #include <dlfcn.h>
 #include <optional>
 #include <type_traits>
@@ -32,10 +33,10 @@ using getClipboard_t = void* (*)(void*);
 using setClipboard_t = bool (*)(void*);
 
 static void x11wlClipboardFailure(const char* object) {
-    if (bool required = getenv("CLIPBOARD_REQUIREX11"); object == objectX11 && required) {
+    if (auto required = getenv("CLIPBOARD_REQUIREX11"); object == objectX11 && required && !strcmp(required, "1")) {
         indicator.detach();
         exit(EXIT_FAILURE);
-    } else if (bool required = getenv("CLIPBOARD_REQUIREWAYLAND"); object == objectWayland && required) {
+    } else if (auto required = getenv("CLIPBOARD_REQUIREWAYLAND"); object == objectWayland && required && !strcmp(required, "1")) {
         indicator.detach();
         exit(EXIT_FAILURE);
     }
@@ -107,8 +108,9 @@ ClipboardContent getGUIClipboard(const std::string& requested_mime) {
 
 void writeToGUIClipboard(const ClipboardContent& clipboard) {
     try {
-        if (!dynamicSetGUIClipboard(objectX11, symbolSetX11Clipboard, clipboard)) {
-            debugStream << "Setting X11 clipboard failed, trying Wayland" << std::endl;
+        auto force_wayland = getenv("CLIPBOARD_REQUIREWAYLAND");
+        if (!dynamicSetGUIClipboard(objectX11, symbolSetX11Clipboard, clipboard) || (force_wayland && !strcmp(force_wayland, "1"))) {
+            debugStream << "Trying Wayland clipboard now" << std::endl;
             if (!dynamicSetGUIClipboard(objectWayland, symbolSetWaylandClipboard, clipboard)) debugStream << "Setting Wayland clipboard failed" << std::endl;
         }
 

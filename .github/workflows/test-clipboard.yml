@@ -11,9 +11,6 @@ jobs:
       fail-fast: false
       matrix:
         os:
-          - version: 20.04
-            no_lto: "1"
-
           - version: 22.04
             no_lto: "0"
 
@@ -27,17 +24,6 @@ jobs:
 
           - os: amd64
             gcc: x86_64-linux-gnu
-
-        exclude:
-          - os:
-              version: 20.04
-            gcc: 12
-
-          - os:
-              version: 20.04
-            gcc: 11
-            arch:
-              os: i386
 
     runs-on: ubuntu-${{ matrix.os.version }}
 
@@ -57,23 +43,19 @@ jobs:
           if [[ "${{ matrix.x11 }}" == "1" ]]
           then
             NO_X11=0
-            PACKAGES="${PACKAGES} libx11-dev:${{ matrix.arch.os }}"
+            PACKAGES="${PACKAGES} libx11-dev libx11-dev:${{ matrix.arch.os }}"
           fi
           
           if [[ "${{ matrix.wayland }}" == "1" ]]
           then
             NO_WAYLAND=0
-            PACKAGES="${PACKAGES} libwayland-dev:${{ matrix.arch.os }} wayland-protocols:${{ matrix.arch.os }}"
+            PACKAGES="${PACKAGES} libwayland-dev libwayland-dev:${{ matrix.arch.os }} wayland-protocols wayland-protocols:${{ matrix.arch.os }}"
           fi
                     
           sudo dpkg --add-architecture "${{ matrix.arch.os }}"
           sudo apt-get update
-          sudo apt-get install -y $PACKAGES xvfb sway xclip
-
-          if [[ "${{ matrix.os.version }}" == "22.04" ]]
-          then
-            sudo apt-get install -y squeekboard
-          fi
+          sudo apt-get upgrade -y
+          sudo apt-get install -y $PACKAGES xvfb sway xclip wl-clipboard squeekboard
 
           cd build
           cmake .. \
@@ -92,11 +74,10 @@ jobs:
           export WLR_BACKENDS=headless
           export WLR_LIBINPUT_NO_DEVICES=1
           export WAYLAND_DISPLAY=wayland-1
-          sway &
-          if [[ "${{ matrix.os.version }}" == "22.04" ]]
-          then
-            squeekboard & # Wayland needs a keyboard for clipboard access >:(
-          fi
+          export LIBGL_ALWAYS_SOFTWARE=1
+          export XDG_RUNTIME_DIR=/tmp
+          sway -d &
+          squeekboard & # Wayland needs a keyboard for clipboard access >:(
           stty rows 80 cols 120 # GHA doesn't provide the right amount by default
           xvfb-run bash ../src/tests/suite.sh
           find . -name '*.gcda' | xargs gcov-${{ matrix.gcc }}
@@ -122,7 +103,6 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
           distro: ${{ matrix.distro }}
-          #shell: 'script -q -e -c "bash --noprofile --norc -eo pipefail {0}"'
           dockerRunArgs: |
             --init
           install: |
@@ -143,12 +123,8 @@ jobs:
             fi
                       
             apt-get update
-            apt-get install -y $PACKAGES xvfb sway xclip cmake
-  
-            if [[ "${{ matrix.distro }}" == "ubuntu22.04" ]]
-            then
-              apt-get install -y squeekboard
-            fi
+            apt-get upgrade -y
+            apt-get install -y $PACKAGES xvfb sway xclip cmake wl-clipboard squeekboard sudo pkg-config cmake-data
 
           run: |
             NO_X11=1
@@ -180,11 +156,14 @@ jobs:
             export WLR_BACKENDS=headless
             export WLR_LIBINPUT_NO_DEVICES=1
             export WAYLAND_DISPLAY=wayland-1
-            sway &
-            if [[ "${{ matrix.distro }}" == "ubuntu22.04" ]]
-            then
-              squeekboard & # Wayland needs a keyboard for clipboard access >:(
-            fi
+            export LIBGL_ALWAYS_SOFTWARE=1
+            export XDG_RUNTIME_DIR=/tmp
+            useradd -m -s /bin/bash user
+            chown -R user:user /home/user
+            echo "user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+            sudo -u user -E sway -d &
+            sleep 4
+            # Wayland needs a keyboard for clipboard access >:(
             stty rows 80 cols 120 # GHA doesn't provide the right amount by default
             xvfb-run bash ../src/tests/suite.sh
             find . -name '*.gcda' | xargs gcov-${{ matrix.gcc }}
