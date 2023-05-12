@@ -6,7 +6,7 @@
 
 The Clipboard Project (CB for short) is the full-featured yet <i>oh-so-easy-to-use</i> clipboard manager for everyone.
 
-It's super duper fast and lightweight, packed with functionality, and tastefully stylish. You'll be able to remember anything, anytime, anywhere at the literal press of a button.
+It's super duper fast and lightweight, packed with functionality, and tastefully stylish. You'll be able to remember anything, anytime, anywhere at the literal press of a button, like having a second brain.
 
 I originally made the Clipboard Project to address some severe deficiencies in other similar tools. But now, it's the world's first (and currently only) complete, honest-to-goodness clipboard manager for the terminal.
 
@@ -50,13 +50,13 @@ I originally made the Clipboard Project to address some severe deficiencies in o
 
 ### ![Quick Installation](documentation/readme-assets/CBQuickInstallation.png)
 
-### <a href="https://github.com/Slackadays/Clipboard/blob/main/install.sh"><img src="documentation/readme-assets/AllExceptWindows.png" alt="All Except Windows" height=25px /></a>
+### <a href="https://github.com/Slackadays/Clipboard/blob/main/src/install.sh"><img src="documentation/readme-assets/AllExceptWindows.png" alt="All Except Windows" height=25px /></a>
 ```bash
-curl -sSL https://github.com/Slackadays/Clipboard/raw/main/install.sh | sh
+curl -sSL https://github.com/Slackadays/Clipboard/raw/main/src/install.sh | sh
 ```
-### <a href="https://github.com/Slackadays/Clipboard/blob/main/install.ps1"><img src="documentation/readme-assets/WindowsRunAsAdmin.png" alt="Windows (run as Administrator)" height=30px /></a>
+### <a href="https://github.com/Slackadays/Clipboard/blob/main/src/install.ps1"><img src="documentation/readme-assets/WindowsRunAsAdmin.png" alt="Windows (run as Administrator)" height=30px /></a>
 ```powershell
-(Invoke-WebRequest -UseBasicParsing https://github.com/Slackadays/Clipboard/raw/main/install.ps1).Content | powershell
+(Invoke-WebRequest -UseBasicParsing https://github.com/Slackadays/Clipboard/raw/main/src/install.ps1).Content | powershell
 ```
 
 <br>
