@@ -87,7 +87,8 @@ IsTTY is_tty;
 
 std::condition_variable cv;
 std::mutex m;
-std::atomic<ProgressState> progress_state;
+std::atomic<ClipboardState> clipboard_state;
+std::atomic<IndicatorState> progress_state;
 
 std::array<std::pair<std::string_view, std::string_view>, 7> colors = {
         {{"[error]", "\033[38;5;196m"},    // red
@@ -103,11 +104,11 @@ UINT old_code_page;
 #endif
 
 bool stopIndicator(bool change_condition_variable) {
-    ProgressState expect = ProgressState::Active;
+    IndicatorState expect = IndicatorState::Active;
 
-    if (!change_condition_variable) return progress_state.exchange(ProgressState::Cancel) == expect;
+    if (!change_condition_variable) return progress_state.exchange(IndicatorState::Cancel) == expect;
 
-    if (!progress_state.compare_exchange_strong(expect, ProgressState::Done)) return false;
+    if (!progress_state.compare_exchange_strong(expect, IndicatorState::Done)) return false;
 
     cv.notify_one();
     indicator.join();
@@ -240,22 +241,31 @@ void convertFromGUIClipboard(const std::string& text) {
 
 void convertFromGUIClipboard(const ClipboardPaths& clipboard) {
     auto regexes = path.ignoreRegexes();
-    auto culledPaths = clipboard.paths();
+    auto paths = clipboard.paths();
     for (const auto& regex : regexes)
-        for (auto&& path : culledPaths)
-            if (std::regex_match(path.filename().string(), regex)) culledPaths.erase(std::find(culledPaths.begin(), culledPaths.end(), path));
+        for (auto&& path : paths)
+            if (std::regex_match(path.filename().string(), regex)) paths.erase(std::find(paths.begin(), paths.end(), path));
 
     // Only clear the temp directory if all files in the clipboard are outside the temp directory
     // This avoids the situation where we delete the very files we're trying to copy
-    auto allOutsideFilepath = std::all_of(culledPaths.begin(), culledPaths.end(), [](auto& path) {
-        auto relative = fs::relative(path, ::path.data);
-        auto firstElement = *(relative.begin());
-        return firstElement == fs::path("..");
+    auto filesHaveChanged = std::all_of(paths.begin(), paths.end(), [](auto& path) {
+        auto filename = path.filename().empty() ? path.parent_path().filename() : path.filename();
+
+        // check if the filename of the provided path does not exist in the temp directory
+        if (!fs::exists(::path.data / filename)) return true;
+
+        // check if the file sizes are different if it's not a directory
+        if (!fs::is_directory(path) && fs::file_size(path) != fs::file_size(::path.data / filename)) return true;
+
+        // check if the file contents are different if it's not a directory
+        if (!fs::is_directory(path) && fileContents(path) != fileContents(::path.data / filename)) return true;
+
+        return false;
     });
 
-    if (allOutsideFilepath) path.makeNewEntry();
+    if (filesHaveChanged) path.makeNewEntry();
 
-    for (auto&& path : culledPaths) {
+    for (auto&& path : paths) {
         if (!fs::exists(path)) continue;
 
         auto target = ::path.data / path.filename();
@@ -273,7 +283,7 @@ void convertFromGUIClipboard(const ClipboardPaths& clipboard) {
 
     if (clipboard.action() == ClipboardPathsAction::Cut) {
         std::ofstream originalFiles {path.metadata.originals};
-        for (auto&& path : culledPaths)
+        for (auto&& path : paths)
             originalFiles << path.string() << std::endl;
     }
 }
@@ -448,6 +458,7 @@ Action getAction() {
                 return entry;
             }
         }
+        stopIndicator();
         printf(no_valid_action_message().data(), arguments.at(0).data(), clipboard_invocation.data(), clipboard_invocation.data());
         exit(EXIT_FAILURE);
     } else if (!is_tty.in) {
@@ -502,6 +513,7 @@ void setFlags() {
 
 void verifyAction() {
     if (io_type == IOType::Pipe && arguments.size() >= 2 && action != Action::Show) {
+        stopIndicator();
         fprintf(stderr, redirection_no_items_message().data(), clipboard_invocation.data());
         exit(EXIT_FAILURE);
     }
@@ -544,32 +556,38 @@ void setupIndicator() {
     const std::array<std::string_view, 22> spinner_steps {"╸         ", "━         ", "╺╸        ", " ━        ", " ╺╸       ", "  ━       ", "  ╺╸      ", "   ━      ",
                                                           "   ╺╸     ", "    ━     ", "    ╺╸    ", "     ━    ", "     ╺╸   ", "      ━   ", "      ╺╸  ", "       ━  ",
                                                           "       ╺╸ ", "        ━ ", "        ╺╸", "         ━", "         ╺", "          "};
+    int step = 0;
+    auto display_progress = [&](const auto& formattedNum) {
+        output_length = fprintf(stderr, working_message().data(), doing_action[action].data(), formattedNum, spinner_steps.at(step).data());
+        fflush(stderr);
+        cv.wait_for(lock, std::chrono::milliseconds(20), [&] { return progress_state != IndicatorState::Active; });
+    };
     auto itemsToProcess = [&] {
         return std::distance(fs::directory_iterator(path.data), fs::directory_iterator());
     };
+    while (clipboard_state == ClipboardState::Setup && progress_state == IndicatorState::Active) {
+        display_progress("");
+        step == 21 ? step = 0 : step++;
+    }
     static size_t items_size = (action == Action::Cut || action == Action::Copy) ? copying.items.size() : itemsToProcess();
     if (items_size == 0) items_size++;
     auto percent_done = [&] {
         return std::to_string(((successes.files + successes.directories + copying.failedItems.size()) * 100) / items_size) + "%";
     };
-    for (int i = 0; progress_state == ProgressState::Active; i == 21 ? i = 0 : i++) {
-        auto display_progress = [&](const auto& formattedNum) {
-            output_length = fprintf(stderr, working_message().data(), doing_action[action].data(), formattedNum, spinner_steps.at(i).data());
-            fflush(stderr);
-            cv.wait_for(lock, std::chrono::milliseconds(20), [&] { return progress_state != ProgressState::Active; });
-        };
-
+    while (clipboard_state == ClipboardState::Action && progress_state == IndicatorState::Active) {
         if (io_type == IOType::File)
             display_progress(percent_done().data());
         else if (io_type == IOType::Pipe)
             display_progress(formatBytes(successes.bytes.load(std::memory_order_relaxed)).data());
         else
             display_progress("");
+
+        step == 21 ? step = 0 : step++;
     }
     fprintf(stderr, "\r%*s\r", output_length, "");
     fprintf(stderr, "\033[?25h"); // restore the cursor
     fflush(stderr);
-    if (progress_state == ProgressState::Cancel) {
+    if (progress_state == IndicatorState::Cancel) {
         if (io_type == IOType::File)
             fprintf(stderr, cancelled_with_progress_message().data(), actions[action].data(), percent_done().data());
         else if (io_type == IOType::Pipe)
@@ -584,8 +602,8 @@ void setupIndicator() {
 }
 
 void startIndicator() { // If cancelled, leave cancelled
-    ProgressState expect = ProgressState::Done;
-    progress_state.compare_exchange_strong(expect, ProgressState::Active);
+    IndicatorState expect = IndicatorState::Done;
+    progress_state.compare_exchange_strong(expect, IndicatorState::Active);
     indicator = std::thread(setupIndicator);
 }
 
@@ -781,23 +799,25 @@ int main(int argc, char* argv[]) {
 
         verifyAction();
 
-        startIndicator();
-
-        (fs::create_directories(global_path.temporary), fs::create_directories(global_path.persistent));
-
         if (action != Action::Info) path.getLock();
 
+        startIndicator();
+
         syncWithGUIClipboard();
+
+        checkForNoItems();
+
+        if (isAClearingAction()) path.makeNewEntry();
+
+        (clipboard_state.exchange(ClipboardState::Action), cv.notify_one());
+
+        (fs::create_directories(global_path.temporary), fs::create_directories(global_path.persistent));
 
         deduplicate(copying.items);
 
         ignoreItemsPreemptively(copying.items);
 
-        checkForNoItems();
-
         checkItemSize(totalItemSize());
-
-        if (isAClearingAction()) path.makeNewEntry();
 
         performAction();
 

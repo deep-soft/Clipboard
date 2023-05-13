@@ -291,11 +291,13 @@ extern bool all_option;
 extern std::string preferred_mime;
 extern std::vector<std::string> available_mimes;
 
-enum class ProgressState : int { Done, Active, Cancel };
+enum class ClipboardState : int { Setup, Action };
+enum class IndicatorState : int { Done, Active, Cancel };
 
 extern std::condition_variable cv;
 extern std::mutex m;
-extern std::atomic<ProgressState> progress_state;
+extern std::atomic<ClipboardState> clipboard_state;
+extern std::atomic<IndicatorState> progress_state;
 static std::thread indicator;
 
 struct Successes {
@@ -370,7 +372,7 @@ private:
 public:
     Message(const auto& message) : internal_message(std::move(message)) {}
     std::string operator()() const { return std::move(formatMessage(internal_message)); }
-    size_t rawLength() const { return std::regex_replace(std::string(internal_message), std::regex("\\[[a-z]+\\]"), "").length(); }
+    size_t rawLength() const { return std::regex_replace(std::string(internal_message), std::regex("\\[[a-z]+\\]|\\\033\\[\\d+m"), "").length(); }
 };
 
 std::string formatNumbers(const auto& num) {

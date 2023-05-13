@@ -1,4 +1,8 @@
+<br>
+
 ### ![The Clipboard Project](documentation/readme-assets/CBBanner.png)
+
+<br>
 
 <br>
 
@@ -9,6 +13,8 @@ The Clipboard Project (CB for short) is the full-featured yet <i>oh-so-easy-to-u
 It's super duper fast and lightweight, packed with functionality, and tastefully stylish. You'll be able to remember anything, anytime, anywhere at the literal press of a button, like having a second brain.
 
 I originally made the Clipboard Project to address some severe deficiencies in other similar tools. But now, it's the world's first (and currently only) complete, honest-to-goodness clipboard manager for the terminal.
+
+<br>
 
 <img src="documentation/readme-assets/Features.png" alt="Just let the features speak for themselves." height=25px>
 
@@ -21,6 +27,8 @@ I originally made the Clipboard Project to address some severe deficiencies in o
 - Customize the <img src="documentation/readme-assets/eyecandy.svg" height="16px" alt="eye candy"/> to your complete viewing pleasure,
 - Taste the freedom of one hundred percent open source code,
 - And tons more!
+
+<br>
 
 <br>
 
@@ -42,21 +50,25 @@ I originally made the Clipboard Project to address some severe deficiencies in o
 
 <br>
 
+<br>
+
 <p align="center">
     <img src="documentation/readme-assets/GetStartedBelow.png" alt="Ready to turbocharge your productivity? Then let's get started with CB." height="100px" />
 </p>
 
 <br>
 
+<br>
+
 ### ![Quick Installation](documentation/readme-assets/CBQuickInstallation.png)
 
-### <a href="https://github.com/Slackadays/Clipboard/blob/main/src/install.sh"><img src="documentation/readme-assets/AllExceptWindows.png" alt="All Except Windows" height=25px /></a>
+### <a href="https://github.com/Slackadays/Clipboard/blob/main/install.sh"><img src="documentation/readme-assets/AllExceptWindows.png" alt="All Except Windows" height=25px /></a>
 ```bash
-curl -sSL https://github.com/Slackadays/Clipboard/raw/main/src/install.sh | sh
+curl -sSL https://github.com/Slackadays/Clipboard/raw/main/install.sh | sh
 ```
-### <a href="https://github.com/Slackadays/Clipboard/blob/main/src/install.ps1"><img src="documentation/readme-assets/WindowsRunAsAdmin.png" alt="Windows (run as Administrator)" height=30px /></a>
+### <a href="https://github.com/Slackadays/Clipboard/blob/main/install.ps1"><img src="documentation/readme-assets/WindowsRunAsAdmin.png" alt="Windows (run as Administrator)" height=30px /></a>
 ```powershell
-(Invoke-WebRequest -UseBasicParsing https://github.com/Slackadays/Clipboard/raw/main/src/install.ps1).Content | powershell
+(Invoke-WebRequest -UseBasicParsing https://github.com/Slackadays/Clipboard/raw/main/install.ps1).Content | powershell
 ```
 
 <br>
@@ -136,9 +148,13 @@ Remove everything listed in `install_manifest.txt`. If you're not using Windows,
 
 <br>
 
+<br>
+
 <p align="center">
     <img src="documentation/readme-assets/HowToUsePrompt.png" alt="Now let's start saving time and effort." height="40px" />
 </p>
+
+<br>
 
 <br>
 
@@ -812,7 +828,6 @@ $ cb status | cat
 </details>
 
 <br>
-<br>
 
 ### <img src="documentation/readme-assets/TipsAndTricks.png" alt="Tips And Tricks" height=25px />
 
@@ -833,8 +848,13 @@ On a slow system? Cache certain things so you don't have to do them again.
 $ neofetch | cb cp_neo
 $ cb | cat
 ```
+    
+Yank anything sitting in your terminal without ever touching the mouse.
+```sh
+$ env | yank -d = -- cb
+```
 
-Need to share or pore over log files? Just copy them!
+Need to share or pore over log files? Copy them in one step!
 ```sh
 $ journalctl | cb
 # For systemd
@@ -873,11 +893,15 @@ cb note "Latest files from website ABCXYZ"
 ```
 
 <br>
+    
+<br>
 
 <p align="center">
     <img src="documentation/readme-assets/CustomizeClipboard.png" alt="Let's make CB our own." height="40px" />
 </p>
 
+<br>
+    
 <br>
 
 ### ![Simple Configuration](documentation/readme-assets/CBSimpleConfiguration.png)
@@ -924,7 +948,7 @@ $ cb -c _ copy "Generation Next"/*
 
 <br>
 
-<details><summary> &ensp; <b><code>--fast-copy</code>, <code>-fc</code></b> &emsp; Add this to use links when copying, cutting, or pasting. If you modify the items that you used with this flag, then the items you paste will have the same changes.</summary>
+<details><summary> &ensp; <b><code>--fast-copy</code>, <code>-fc</code></b> &emsp; Add this to use links when copying, cutting, pasting, or loading. If you modify the items that you used with this flag, then the items you paste will have the same changes.</summary>
 
 <br>
 
@@ -1213,6 +1237,7 @@ $ cb cp "In the 1990s, though, several innovative musicians reinvigorated bachat
  
 <br>
 <br>
+<br>
 
 ### ![Need Help?](documentation/readme-assets/NeedHelp.png)
 
@@ -1225,6 +1250,7 @@ We're here for you! Check out [the Clipboard Project Wiki](https://github.com/Sl
     <a href="https://twitter.com/GetClipboard"><img src="https://img.shields.io/badge/FOLLOW-%40GETCLIPBOARD-blue?logo=twitter&style=for-the-badge&labelColor=rgb(55,55,55)" alt="Follow us on Twitter"></a>
 </p>
 
+<br>
 <br>
 
 ### ![Thank You!](documentation/readme-assets/ThankYou.png)
