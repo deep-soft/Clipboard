@@ -67,7 +67,7 @@ struct Constants {
     std::string_view clipboard_commit = GIT_COMMIT_HASH;
     std::string_view data_file_name = "rawdata.clipboard";
     std::string_view default_clipboard_name = "0";
-    std::string_view default_clipboard_entry = "0";
+    unsigned long default_clipboard_entry = 0;
     std::string_view temporary_directory_name = "Clipboard";
     std::string_view persistent_directory_name = ".clipboard";
     std::string_view original_files_name = "originals";
@@ -109,175 +109,17 @@ static auto thisPID() {
 std::string fileContents(const fs::path& path);
 std::vector<std::string> fileLines(const fs::path& path);
 
+bool stopIndicator(bool change_condition_variable = true);
+
 size_t writeToFile(const fs::path& path, const std::string& content, bool append = false);
-
-class Clipboard {
-    fs::path root;
-    std::string this_name;
-    std::string this_entry;
-    std::deque<unsigned long> entryIndex;
-
-public:
-    bool is_persistent = false;
-
-    class DataDirectory {
-        fs::path root;
-
-    public:
-        fs::path raw;
-
-        operator fs::path() { return root; }
-        operator fs::path() const { return root; }
-        auto operator=(const auto& other) { return root = other; }
-        auto operator/(const auto& other) { return root / other; }
-    } data;
-
-    class MetadataDirectory {
-        fs::path root;
-
-    public:
-        fs::path notes;
-        fs::path originals;
-        fs::path lock;
-        fs::path ignore;
-        operator fs::path() { return root; }
-        operator fs::path() const { return root; }
-        auto operator=(const auto& other) { return root = other; }
-        auto operator/(const auto& other) { return root / other; }
-    } metadata;
-
-    auto generatedEntryIndex() {
-        // auto then = std::chrono::system_clock::now();
-        std::deque<unsigned long> pathNames;
-        fs::path entriesDir = root / constants.data_directory;
-        fs::create_directories(entriesDir);
-#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
-        auto dirptr = opendir(entriesDir.string().data());
-        char* endptr = nullptr;
-        errno = 0;
-        for (auto* dir = readdir(dirptr); dir != nullptr; dir = readdir(dirptr), errno = 0)
-            if (auto num = strtoul(dir->d_name, &endptr, 10); errno == 0 && endptr != dir->d_name) [[likely]]
-                pathNames.emplace_back(num);
-            else [[unlikely]]
-                continue;
-#else
-        for (const auto& entry : fs::directory_iterator(entriesDir))
-            try {
-                pathNames.emplace_back(std::stoul(entry.path().filename().string()));
-            } catch (...) {}
-#endif
-        if (pathNames.empty()) pathNames.emplace_back(0);
-        std::sort(pathNames.begin(), pathNames.end(), std::greater<>());
-        // auto now = std::chrono::system_clock::now();
-        // std::cout << "Took " << std::chrono::duration_cast<std::chrono::microseconds>(now - then).count() << "us to index " << pathNames.size() << " entries" << std::endl;
-        return pathNames;
-    }
-
-    Clipboard() = default;
-    Clipboard(const auto& clipboard_name, const std::string_view& clipboard_entry = constants.default_clipboard_entry) {
-        this_name = clipboard_name;
-        this_entry = clipboard_entry;
-
-        is_persistent = isPersistent(this_name) || getenv("CLIPBOARD_ALWAYS_PERSIST");
-
-        root = (is_persistent ? global_path.persistent : global_path.temporary) / this_name;
-
-        entryIndex = generatedEntryIndex();
-
-        data = root / constants.data_directory / std::to_string(entryIndex.at(std::stoul(this_entry)));
-        data.raw = data / constants.data_file_name;
-
-        metadata = root / constants.metadata_directory;
-        metadata.notes = metadata / constants.notes_name;
-        metadata.originals = metadata / constants.original_files_name;
-        metadata.lock = metadata / constants.lock_name;
-        metadata.ignore = metadata / constants.ignore_regex_name;
-
-        fs::create_directories(data);
-        fs::create_directories(metadata);
-    }
-    operator fs::path() { return root; }
-    operator fs::path() const { return root; }
-    auto operator=(const auto& other) { return root = other; }
-    auto operator/(const auto& other) { return root / other; }
-    std::string string() { return root.string(); }
-    bool holdsData() {
-        if (!fs::exists(data) || fs::is_empty(data)) return false;
-        if (fs::exists(data.raw) && fs::is_empty(data.raw)) return false;
-        return true;
-    }
-    bool holdsRawData() const { return fs::exists(data.raw) && !fs::is_empty(data.raw); }
-    bool holdsIgnoreRegexes() { return fs::exists(metadata.ignore) && !fs::is_empty(metadata.ignore); }
-    std::vector<std::regex> ignoreRegexes() {
-        std::vector<std::regex> regexes;
-        if (!holdsIgnoreRegexes()) return regexes;
-        for (const auto& line : fileLines(metadata.ignore))
-            regexes.emplace_back(line);
-        return regexes;
-    }
-    void applyIgnoreRegexes() {
-        if (!holdsIgnoreRegexes()) return;
-        auto regexes = ignoreRegexes();
-        if (holdsRawData())
-            for (const auto& regex : regexes)
-                writeToFile(data.raw, std::regex_replace(fileContents(data.raw), regex, ""));
-        else
-            for (const auto& regex : regexes)
-                for (const auto& entry : fs::directory_iterator(data))
-                    if (std::regex_match(entry.path().filename().string(), regex)) fs::remove_all(entry.path());
-    }
-    bool isUnused() {
-        if (holdsData()) return false;
-        if (fs::exists(metadata.notes) && !fs::is_empty(metadata.notes)) return false;
-        if (fs::exists(metadata.originals) && !fs::is_empty(metadata.originals)) return false;
-        return true;
-    }
-    bool isLocked() { return fs::exists(metadata.lock); }
-    void getLock() {
-        if (isLocked()) {
-            auto pid = std::stoi(fileContents(metadata.lock));
-#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
-            if (getpgrp() == getpgid(pid)) return; // if we're in the same process group, we're probably in a self-referencing pipe like cb | cb
-#endif
-            while (true) {
-#if defined(_WIN32) || defined(_WIN64)
-                if (WaitForSingleObject(OpenProcess(SYNCHRONIZE, FALSE, pid), 0) == WAIT_OBJECT_0) break;
-#elif defined(__linux__) || defined(__unix__) || defined(__APPLE__)
-                if (kill(pid, 0) == -1) break;
-#endif
-                if (!isLocked()) break;
-                std::this_thread::sleep_for(std::chrono::milliseconds(250));
-            }
-        }
-        writeToFile(metadata.lock, std::to_string(thisPID()));
-    }
-    void releaseLock() { fs::remove(metadata.lock); }
-    std::string name() const { return this_name; }
-    std::string entry() { return this_entry; }
-    size_t totalEntries() { return entryIndex.size(); }
-    void makeNewEntry() {
-        entryIndex.emplace_front(entryIndex.front() + 1);
-
-        data = root / constants.data_directory / std::to_string(entryIndex.at(std::stoul(this_entry)));
-        data.raw = data / constants.data_file_name;
-
-        fs::create_directories(data);
-    }
-    void trimHistoryEntries() {
-        if (entryIndex.size() <= maximumHistorySize || maximumHistorySize == 0) return;
-        while (entryIndex.size() > maximumHistorySize) {
-            fs::remove_all(root / constants.data_directory / std::to_string(entryIndex.back()));
-            entryIndex.pop_back();
-        }
-    }
-};
-extern Clipboard path;
 
 extern std::vector<std::string> arguments;
 
 extern std::string clipboard_invocation;
 
 extern std::string clipboard_name;
+
+extern unsigned long clipboard_entry;
 
 extern std::string locale;
 
@@ -361,6 +203,185 @@ static std::string formatMessage(const std::string_view& str, bool colorful = !n
     return temp;
 }
 
+class Clipboard {
+    fs::path root;
+    std::string this_name;
+    unsigned long this_entry;
+
+public:
+    std::deque<unsigned long> entryIndex;
+    bool is_persistent = false;
+
+    class DataDirectory {
+        fs::path root;
+
+    public:
+        fs::path raw;
+
+        operator fs::path() { return root; }
+        operator fs::path() const { return root; }
+        auto operator=(const auto& other) { return root = other; }
+        auto operator/(const auto& other) { return root / other; }
+    } data;
+
+    class MetadataDirectory {
+        fs::path root;
+
+    public:
+        fs::path notes;
+        fs::path originals;
+        fs::path lock;
+        fs::path ignore;
+        operator fs::path() { return root; }
+        operator fs::path() const { return root; }
+        auto operator=(const auto& other) { return root = other; }
+        auto operator/(const auto& other) { return root / other; }
+    } metadata;
+
+    auto generatedEntryIndex() {
+        // auto then = std::chrono::system_clock::now();
+        std::deque<unsigned long> pathNames;
+        fs::path entriesDir = root / constants.data_directory;
+        fs::create_directories(entriesDir);
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+        auto dirptr = opendir(entriesDir.string().data());
+        char* endptr = nullptr;
+        errno = 0;
+        for (auto* dir = readdir(dirptr); dir != nullptr; dir = readdir(dirptr), errno = 0)
+            if (auto num = strtoul(dir->d_name, &endptr, 10); errno == 0 && endptr != dir->d_name) [[likely]]
+                pathNames.emplace_back(num);
+            else [[unlikely]]
+                continue;
+#else
+        for (const auto& entry : fs::directory_iterator(entriesDir))
+            try {
+                pathNames.emplace_back(std::stoul(entry.path().filename().string()));
+            } catch (...) {}
+#endif
+        if (pathNames.empty()) pathNames.emplace_back(0);
+        std::sort(pathNames.begin(), pathNames.end(), std::greater<>());
+        // auto now = std::chrono::system_clock::now();
+        // std::cout << "Took " << std::chrono::duration_cast<std::chrono::microseconds>(now - then).count() << "us to index " << pathNames.size() << " entries" << std::endl;
+        return pathNames;
+    }
+
+    Clipboard() = default;
+    Clipboard(const auto& clipboard_name, const unsigned long& clipboard_entry = constants.default_clipboard_entry) {
+        this_name = clipboard_name;
+        this_entry = clipboard_entry;
+
+        is_persistent = isPersistent(this_name) || getenv("CLIPBOARD_ALWAYS_PERSIST");
+
+        root = (is_persistent ? global_path.persistent : global_path.temporary) / this_name;
+
+        entryIndex = generatedEntryIndex();
+
+        try {
+            data = root / constants.data_directory / std::to_string(entryIndex.at(this_entry));
+        } catch (...) {
+            stopIndicator();
+            fprintf(stderr,
+                    formatMessage(
+                            "[error]❌ The history entry you chose (\"[bold]%lu[blank][error]\") doesn't exist. 💡 [help]Try choosing a different or newer one instead.\n[blank]"
+                    )
+                            .data(),
+                    this_entry);
+            exit(EXIT_FAILURE);
+        }
+
+        data.raw = data / constants.data_file_name;
+
+        metadata = root / constants.metadata_directory;
+        metadata.notes = metadata / constants.notes_name;
+        metadata.originals = metadata / constants.original_files_name;
+        metadata.lock = metadata / constants.lock_name;
+        metadata.ignore = metadata / constants.ignore_regex_name;
+
+        fs::create_directories(data);
+        fs::create_directories(metadata);
+    }
+    operator fs::path() { return root; }
+    operator fs::path() const { return root; }
+    auto operator=(const auto& other) { return root = other; }
+    auto operator/(const auto& other) { return root / other; }
+    std::string string() { return root.string(); }
+    bool holdsData() {
+        if (!fs::exists(data) || fs::is_empty(data)) return false;
+        if (fs::exists(data.raw) && fs::is_empty(data.raw)) return false;
+        return true;
+    }
+    bool holdsRawData() const { return fs::exists(data.raw) && !fs::is_empty(data.raw); }
+    bool holdsIgnoreRegexes() { return fs::exists(metadata.ignore) && !fs::is_empty(metadata.ignore); }
+    std::vector<std::regex> ignoreRegexes() {
+        std::vector<std::regex> regexes;
+        if (!holdsIgnoreRegexes()) return regexes;
+        for (const auto& line : fileLines(metadata.ignore))
+            regexes.emplace_back(line);
+        return regexes;
+    }
+    void applyIgnoreRegexes() {
+        if (!holdsIgnoreRegexes()) return;
+        auto regexes = ignoreRegexes();
+        if (holdsRawData())
+            for (const auto& regex : regexes)
+                writeToFile(data.raw, std::regex_replace(fileContents(data.raw), regex, ""));
+        else
+            for (const auto& regex : regexes)
+                for (const auto& entry : fs::directory_iterator(data))
+                    if (std::regex_match(entry.path().filename().string(), regex)) fs::remove_all(entry.path());
+    }
+    bool isUnused() {
+        if (holdsData()) return false;
+        if (fs::exists(metadata.notes) && !fs::is_empty(metadata.notes)) return false;
+        if (fs::exists(metadata.originals) && !fs::is_empty(metadata.originals)) return false;
+        return true;
+    }
+    bool isLocked() { return fs::exists(metadata.lock); }
+    void getLock() {
+        if (isLocked()) {
+            auto pid = std::stoi(fileContents(metadata.lock));
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+            if (getpgrp() == getpgid(pid)) return; // if we're in the same process group, we're probably in a self-referencing pipe like cb | cb
+#endif
+            while (true) {
+#if defined(_WIN32) || defined(_WIN64)
+                if (WaitForSingleObject(OpenProcess(SYNCHRONIZE, FALSE, pid), 0) == WAIT_OBJECT_0) break;
+#elif defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+                if (kill(pid, 0) == -1) break;
+#endif
+                if (!isLocked()) break;
+                std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            }
+        }
+        writeToFile(metadata.lock, std::to_string(thisPID()));
+    }
+    void releaseLock() { fs::remove(metadata.lock); }
+    std::string name() const { return this_name; }
+    unsigned long entry() { return this_entry; }
+    size_t totalEntries() { return entryIndex.size(); }
+    void makeNewEntry() {
+        entryIndex.emplace_front(entryIndex.front() + 1);
+
+        data = root / constants.data_directory / std::to_string(entryIndex.at(this_entry));
+        data.raw = data / constants.data_file_name;
+
+        fs::create_directories(data);
+    }
+    void setEntry(const unsigned long& entry) {
+        this_entry = entry;
+        data = root / constants.data_directory / std::to_string(entryIndex.at(this_entry));
+        data.raw = data / constants.data_file_name;
+    }
+    void trimHistoryEntries() {
+        if (entryIndex.size() <= maximumHistorySize || maximumHistorySize == 0) return;
+        while (entryIndex.size() > maximumHistorySize) {
+            fs::remove_all(root / constants.data_directory / std::to_string(entryIndex.back()));
+            entryIndex.pop_back();
+        }
+    }
+};
+extern Clipboard path;
+
 void incrementSuccessesForItem(const auto& item) {
     fs::is_directory(item) ? successes.directories++ : successes.files++;
 }
@@ -406,12 +427,10 @@ void syncWithGUIClipboard(const ClipboardPaths& clipboard);
 void showClipboardContents();
 void setupAction(int& argc, char* argv[]);
 void checkForNoItems();
-bool stopIndicator(bool change_condition_variable);
 void startIndicator();
 void setupIndicator();
 void deduplicateItems();
 unsigned long long totalItemSize();
-bool stopIndicator(bool change_condition_variable = true);
 void checkItemSize();
 TerminalSize thisTerminalSize();
 void clearData(bool force_clear);
@@ -498,4 +517,6 @@ void exportClipboards();
 void infoJSON();
 void ignoreRegex();
 void statusJSON();
+void history();
+void search();
 } // namespace PerformAction

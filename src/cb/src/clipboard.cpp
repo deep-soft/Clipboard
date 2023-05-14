@@ -75,6 +75,8 @@ std::string clipboard_invocation;
 
 std::string clipboard_name = "0";
 
+unsigned long clipboard_entry = 0;
+
 std::string locale;
 
 Action action;
@@ -206,6 +208,11 @@ bool isAClearingAction() {
     return action == Copy || action == Cut || action == Clear;
 }
 
+bool needsANewEntry() {
+    using enum Action;
+    return (action == Copy || action == Cut || (action == Clear && !all_option)) && clipboard_entry == constants.default_clipboard_entry;
+}
+
 [[nodiscard]] CopyPolicy userDecision(const std::string& item) {
     using enum CopyPolicy;
 
@@ -250,7 +257,6 @@ void convertFromGUIClipboard(const ClipboardPaths& clipboard) {
     // This avoids the situation where we delete the very files we're trying to copy
     auto filesHaveChanged = std::all_of(paths.begin(), paths.end(), [](auto& path) {
         auto filename = path.filename().empty() ? path.parent_path().filename() : path.filename();
-
         // check if the filename of the provided path does not exist in the temp directory
         if (!fs::exists(::path.data / filename)) return true;
 
@@ -263,7 +269,7 @@ void convertFromGUIClipboard(const ClipboardPaths& clipboard) {
         return false;
     });
 
-    if (filesHaveChanged) path.makeNewEntry();
+    if (filesHaveChanged && !paths.empty()) path.makeNewEntry();
 
     for (auto&& path : paths) {
         if (!fs::exists(path)) continue;
@@ -415,7 +421,8 @@ void setupVariables(int& argc, char* argv[]) {
 }
 
 void syncWithGUIClipboard(bool force) {
-    if ((!isAClearingAction() && clipboard_name == constants.default_clipboard_name && !getenv("CLIPBOARD_NOGUI")) || (force && !getenv("CLIPBOARD_NOGUI"))) {
+    if ((!isAClearingAction() && clipboard_name == constants.default_clipboard_name && clipboard_entry == constants.default_clipboard_entry && !getenv("CLIPBOARD_NOGUI"))
+        || (force && !getenv("CLIPBOARD_NOGUI"))) {
         using enum ClipboardContentType;
         auto content = getGUIClipboard(preferred_mime);
         if (content.type() == Text) {
@@ -475,13 +482,13 @@ IOType getIOType() {
     if (action == Cut || action == Copy || action == Add) {
         if (copying.items.size() == 1 && !fs::exists(copying.items.at(0))) return Text;
         if (!is_tty.in) return Pipe;
-    } else if (action == Paste || action == Show || action == Clear || action == Edit || action == Status || action == Info) {
+    } else if (action == Paste || action == Show || action == Clear || action == Edit || action == Status || action == Info || action == History) {
         if (!is_tty.out) return Pipe;
         return Text;
     } else if (action == Remove) {
         if (!is_tty.in) return Pipe;
         return Text;
-    } else if (action == Note || action == Ignore || action == Swap || action == Load || action == Import || action == Export || action == History) {
+    } else if (action == Note || action == Ignore || action == Swap || action == Load || action == Import || action == Export || action == Search) {
         if (!is_tty.in && copying.items.empty()) return Pipe;
         return Text;
     }
@@ -496,14 +503,20 @@ void setFlags() {
     if (flagIsPresent<bool>("--no-progress") || flagIsPresent<bool>("-np")) progress_silent = true;
     if (flagIsPresent<bool>("--no-confirmation") || flagIsPresent<bool>("-nc")) confirmation_silent = true;
     if (flagIsPresent<bool>("--ee")) {
-        printf("%s", formatMessage("[bold][info]Here's some nice bachata music from Aventura! https://www.youtube.com/watch?v=RxIM2bMBhCo\n[blank]").data());
-        printf("%s", formatMessage("[bold][info]How about some in English? https://www.youtube.com/watch?v=jnD8Av4Dl4o\n[blank]").data());
-        printf("%s", formatMessage("[bold][info]Here's one from Romeo, the head of Aventura: https://www.youtube.com/watch?v=yjdHGmRKz08\n[blank]").data());
-        printf("%s", formatMessage("[bold][info]This one isn't bachata but it is from Aventura: https://youtu.be/Lg_Pn45gyMs\n[blank]").data());
+        printf("%s", formatMessage("[info]Here's some nice bachata music from Aventura! https://www.youtube.com/watch?v=RxIM2bMBhCo\n[blank]").data());
+        printf("%s", formatMessage("[info]How about some in English? https://www.youtube.com/watch?v=jnD8Av4Dl4o\n[blank]").data());
+        printf("%s", formatMessage("[info]Here's one from Romeo, the head of Aventura: https://www.youtube.com/watch?v=yjdHGmRKz08\n[blank]").data());
+        printf("%s", formatMessage("[info]This one isn't bachata but it is from Aventura: https://youtu.be/Lg_Pn45gyMs\n[blank]").data());
         exit(EXIT_SUCCESS);
     }
     if (auto flag = flagIsPresent<std::string>("-c"); flag != "") clipboard_name = flag;
     if (auto flag = flagIsPresent<std::string>("--clipboard"); flag != "") clipboard_name = flag;
+    if (auto flag = flagIsPresent<std::string>("-e"); flag != "") try {
+            clipboard_entry = std::stoul(flag);
+        } catch (...) {}
+    if (auto flag = flagIsPresent<std::string>("--entry"); flag != "") try {
+            clipboard_entry = std::stoul(flag);
+        } catch (...) {}
     if (flagIsPresent<bool>("-h") || flagIsPresent<bool>("help", "--")) {
         printf(help_message().data(), constants.clipboard_version.data(), constants.clipboard_commit.data());
         exit(EXIT_SUCCESS);
@@ -528,7 +541,7 @@ void setFilepaths() {
     global_path.persistent = (getenv("CLIPBOARD_PERSISTDIR") ? getenv("CLIPBOARD_PERSISTDIR") : (getenv("XDG_CACHE_HOME") ? getenv("XDG_CACHE_HOME") : global_path.home))
                              / constants.persistent_directory_name;
 
-    path = Clipboard(clipboard_name);
+    path = Clipboard(clipboard_name, clipboard_entry);
 }
 
 void checkForNoItems() {
@@ -716,6 +729,10 @@ void performAction() {
             clear();
         else if (action == Show)
             show();
+        else if (action == History)
+            history();
+        else if (action == Search)
+            search();
     }
 }
 
@@ -807,7 +824,7 @@ int main(int argc, char* argv[]) {
 
         checkForNoItems();
 
-        if (isAClearingAction()) path.makeNewEntry();
+        if (needsANewEntry()) path.makeNewEntry();
 
         (clipboard_state.exchange(ClipboardState::Action), cv.notify_one());
 
