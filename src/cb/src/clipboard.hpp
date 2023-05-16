@@ -35,6 +35,7 @@
 #if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
 #include <cstring>
 #include <dirent.h>
+#include <sys/stat.h>
 #endif
 
 #include <clipboard/fork.hpp>
@@ -103,6 +104,16 @@ static auto thisPID() {
     return GetCurrentProcessId();
 #elif defined(__linux__) || defined(__unix__) || defined(__APPLE__)
     return getpid();
+#endif
+}
+
+static size_t directoryOverhead(const fs::path& directory) {
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+    struct stat info;
+    if (stat(directory.string().data(), &info) != 0) return 0;
+    return info.st_size;
+#else
+    return 0;
 #endif
 }
 
@@ -356,12 +367,19 @@ public:
     auto operator=(const auto& other) { return root = other; }
     auto operator/(const auto& other) { return root / other; }
     std::string string() { return root.string(); }
-    bool holdsData() {
-        if (fs::is_empty(data)) return false; // we know that the data folder exists because it's made on construction
-        if (fs::exists(data.raw) && fs::is_empty(data.raw)) return false;
-        return true;
+    bool holdsRawData() const {
+        std::error_code ec;
+        bool empty = fs::is_empty(data.raw, ec);
+        if (ec) return false; // errors out if the file doesn't exist, return false to save on a syscall
+        return !empty;
     }
-    bool holdsRawData() const { return fs::exists(data.raw) && !fs::is_empty(data.raw); }
+    bool holdsData() {
+        if (fs::is_empty(data)) return false;
+        if (holdsRawData()) return true;
+        for (const auto& entry : fs::directory_iterator(data))
+            if (!fs::is_empty(entry)) return true;
+        return false;
+    }
     bool holdsIgnoreRegexes() { return fs::exists(metadata.ignore) && !fs::is_empty(metadata.ignore); }
     std::vector<std::regex> ignoreRegexes() {
         std::vector<std::regex> regexes;
