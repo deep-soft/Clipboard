@@ -1,4 +1,4 @@
-# 2023-05-09 07:50
+# 2023-05-17 06:40
 name: act - Clipboard Builds - release
 
 on:
@@ -16,13 +16,13 @@ jobs:
       matrix:
         gcc: [ 12 ]
         arch:
-          - { os: i386      , gcc: i686-linux-gnu         , needs_ports: "0" }
+#          - { os: i386      , gcc: i686-linux-gnu         , needs_ports: "0" }
           - { os: amd64     , gcc: x86_64-linux-gnu       , needs_ports: "0" }
           - { os: arm64     , gcc: aarch64-linux-gnu      , needs_ports: "1" }
           - { os: riscv64   , gcc: riscv64-linux-gnu      , needs_ports: "1" }
           - { os: armhf     , gcc: arm-linux-gnueabihf    , needs_ports: "1" }
           - { os: ppc64el   , gcc: powerpc64le-linux-gnu  , needs_ports: "1" }
-          - { os: s390x     , gcc: s390x-linux-gnu        , needs_ports: "1" }
+#          - { os: s390x     , gcc: s390x-linux-gnu        , needs_ports: "1" }
 
     runs-on: ubuntu-22.04
 
