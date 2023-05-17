@@ -349,10 +349,7 @@ public:
         } catch (...) {
             stopIndicator();
             fprintf(stderr,
-                    formatMessage(
-                            "[error]❌ The history entry you chose (\"[bold]%lu[blank][error]\") doesn't exist. 💡 [help]Try choosing a different or newer one instead.\n[blank]"
-                    )
-                            .data(),
+                    formatMessage("[error]❌ The history entry you chose (\"[bold]%lu[blank][error]\") doesn't exist. 💡 [help]Try choosing a different or newer one instead.\n[blank]").data(),
                     this_entry);
             exit(EXIT_FAILURE);
         }
@@ -447,6 +444,7 @@ public:
         data = root / constants.data_directory / std::to_string(entryIndex.at(this_entry));
         data.raw = data / constants.data_file_name;
     }
+    fs::path entryPathFor(const unsigned long& entry) { return root / constants.data_directory / std::to_string(entryIndex.at(entry)); }
     void trimHistoryEntries() {
         if (entryIndex.size() <= maximumHistorySize || maximumHistorySize == 0) return;
         while (entryIndex.size() > maximumHistorySize) {

@@ -43,7 +43,9 @@ assert_equals() {
     then
         return 0
     else
-        fail "😕 $1 doesn't equal $2"
+        truncated1=$(printf "%s" "$1" | head -c 64)
+        truncated2=$(printf "%s" "$2" | head -c 64)
+        fail "😕 $truncated1 doesn't equal $truncated2"
     fi
 }
 
@@ -59,7 +61,8 @@ assert_fails() {
 
 verify_contents() {
     contents=$(cat "$1")
-    if [ "$contents" != "Foobar" ]
+    baseline="$2"
+    if [ "$contents" != "$baseline" ]
     then
         fail "😕 The contents don't match: $contents"
     fi
@@ -76,16 +79,16 @@ content_is_shown() {
 
 get_current_entry_name() {
   # Get the highest numbered entry folder, where 10 is the entry name in /tmp/Clipboard/0/data/10
-  ls "$CLIPBOARD_TMPDIR"/Clipboard/0/data/ | sort -n | tail -n 1
+  ls "$CLIPBOARD_TMPDIR"/Clipboard/"$1"/data/ | sort -n | tail -n 1
 }
 
 item_is_in_cb() {
   clipboard="$1"
   item="$2"
-  entry="$(get_current_entry_name)"
+  entry="$(get_current_entry_name "$clipboard")"
   if [ -f "$CLIPBOARD_TMPDIR"/Clipboard/"$clipboard"/data/"$entry"/"$item" ]
   then
-    verify_contents "$CLIPBOARD_TMPDIR"/Clipboard/"$clipboard"/data/"$entry"/"$item"
+    verify_contents "$CLIPBOARD_TMPDIR"/Clipboard/"$clipboard"/data/"$entry"/"$item" "Foobar"
     return 0
   elif [ -d "$CLIPBOARD_TMPDIR"/Clipboard/"$clipboard"/data/"$entry"/"$item" ]
   then
@@ -95,11 +98,12 @@ item_is_in_cb() {
   fi
 }
 
-item_is_here() {
+item_exists() {
   item="$1"
-  if [ -f "$item" ]
+  content="${2:-Foobar}"
+  if [ -f "$item" ] || [ -d "$item" ]
   then
-      verify_contents "$item"
+      verify_contents "$item" "$content"
       return 0
   else
       fail "😕 The item $item doesn't exist here"
@@ -119,7 +123,7 @@ item_is_not_here() {
 item_is_not_in_cb() {
   clipboard="$1"
   item="$2"
-  entry="$(get_current_entry_name)"
+  entry="$(get_current_entry_name "$clipboard")"
   if [ -f "$CLIPBOARD_TMPDIR"/Clipboard/"$clipboard"/data/"$entry"/"$item" ]
   then
     fail "😕 The item $item exists in clipboard $clipboard"
