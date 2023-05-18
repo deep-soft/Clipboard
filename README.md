@@ -8,7 +8,7 @@
 
 <img src="documentation/readme-assets/ProductivityTools.png" alt="The fully-featured yet oh-so-easy-to-use clipboard manager for everyone." />
 
-The Clipboard Project <sub>(CB for short)</sub> is a really fast and lightweight, feature packed, and user friendly tool that saves you tons of time and effort in _style_. You'll be able to remember anything, anytime, anywhere at the literal press of a button, just like having a second brain.
+The Clipboard Project <sub>(CB for short)</sub> is a fast and lightweight, feature packed, and user friendly tool that saves you time and effort in _style_. You'll be able to remember anything, anytime, anywhere at the literal press of a button, just like having a second brain.
 
 I originally made this to address some huge annoyances in other similar tools like a frustrating user experience, strangely limited features and only working on one platform. But now, CB is the world's first (and currently only) complete, honest-to-goodness clipboard manager for anybody who can press keys on a keyboard.
 
@@ -43,16 +43,16 @@ I originally made this to address some huge annoyances in other similar tools li
         <img src="https://img.shields.io/codecov/c/github/slackadays/Clipboard/main?style=for-the-badge&label=COVERAGE&token=RO7KDOZ6Q2&logo=codecov&labelColor=rgb(55,55,55)">
     </a>
     <br>
-    <a href="https://github.com/Slackadays/Clipboard/stargazers">
-        <img src="https://img.shields.io/github/stars/slackadays/clipboard?logo=github&style=for-the-badge&labelColor=rgb(55,55,55)">
-    </a>
-    <a href="https://twitter.com/GetClipboard">
-        <img src="https://img.shields.io/badge/FOLLOW-%40GETCLIPBOARD-blue?logo=twitter&style=for-the-badge&labelColor=rgb(55,55,55)" alt="Follow us on Twitter">
-    </a>
     <a href="https://aur.archlinux.org/packages/clipboard">
         <img src="https://img.shields.io/aur/maintainer/clipboard?label=AUR%20MAINTAINER&logo=archlinux&style=for-the-badge&labelColor=rgb(55,55,55)">
     </a>
-    <img src="https://img.shields.io/github/license/slackadays/clipboard?label=OPEN%20SOURCE&style=for-the-badge&labelColor=rgb(55,55,55)&logo=openaccess">
+    <a href="https://twitter.com/GetClipboard">
+        <img src="https://img.shields.io/badge/FOLLOW-%40GETCLIPBOARD-blue?style=for-the-badge&labelColor=rgb(55,55,55)" alt="Follow us on Twitter">
+    </a>
+    <a href="https://github.com/Slackadays/Clipboard/contributors">
+        <img src="https://img.shields.io/github/contributors-anon/slackadays/clipboard?style=for-the-badge&labelColor=rgb(55,55,55)&logo=github">
+    </a>
+    <img src="https://img.shields.io/github/license/slackadays/clipboard?label=OPEN%20SOURCE&style=for-the-badge&labelColor=rgb(55,55,55)">
 </p>
 
 <br>
@@ -1065,6 +1065,19 @@ $ cb -nc sh | cat
 Reduce distractions while doing a search that takes a while.
 ```sh
 $ fzf | cb -np
+```
+
+</details>
+
+<br>
+
+<details><summary> &ensp; <b><code>--bachata</code></b> &emsp; Add this for something special! </summary>
+
+<br>
+
+Make your life less boring.
+```sh
+$ cb --bachata
 ```
 
 </details>

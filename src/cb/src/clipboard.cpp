@@ -46,6 +46,7 @@
 #endif
 
 #if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+#include <fcntl.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #endif
@@ -64,7 +65,8 @@ bool confirmation_silent = false;
 bool no_color = false;
 bool no_emoji = false;
 bool all_option = false;
-unsigned long maximumHistorySize = 0;
+
+std::string maximumHistorySize;
 
 std::string preferred_mime;
 std::vector<std::string> available_mimes;
@@ -131,9 +133,21 @@ TerminalSize thisTerminalSize() {
 }
 
 std::string fileContents(const fs::path& path) {
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+    int fd = open(path.string().data(), O_RDONLY);
+    if (fd == -1) return "";
+    std::string contents;
+    std::array<char, 65536> buffer;
+    ssize_t bytes_read;
+    while ((bytes_read = read(fd, buffer.data(), buffer.size())) > 0)
+        contents.append(buffer.data(), bytes_read);
+    close(fd);
+    return contents;
+#else
     std::stringstream buffer;
     buffer << std::ifstream(path, std::ios::binary).rdbuf();
     return buffer.str();
+#endif
 }
 
 std::vector<std::string> fileLines(const fs::path& path) {
@@ -268,7 +282,12 @@ void convertFromGUIClipboard(const ClipboardPaths& clipboard) {
         return false;
     });
 
-    if (filesHaveChanged && !paths.empty()) path.makeNewEntry();
+    auto eligibleForCopying = std::all_of(paths.begin(), paths.end(), [](auto& path) {
+        if (!fs::exists(path)) return false;
+        return true;
+    });
+
+    if (filesHaveChanged && eligibleForCopying && !paths.empty()) path.makeNewEntry();
 
     for (auto&& path : paths) {
         if (!fs::exists(path)) continue;
@@ -408,9 +427,7 @@ void setupVariables(int& argc, char* argv[]) {
 
     if (auto setting = getenv("CLIPBOARD_THEME"); setting != nullptr) setTheme(std::string(setting));
 
-    if (auto size = getenv("CLIPBOARD_HISTORY"); size != nullptr) try {
-            maximumHistorySize = std::stoul(size);
-        } catch (...) {};
+    if (auto size = getenv("CLIPBOARD_HISTORY"); size != nullptr) maximumHistorySize = size;
 
     if (argc == 0) return;
 
@@ -501,11 +518,11 @@ void setFlags() {
     if (auto flag = flagIsPresent<std::string>("-m"); flag != "") preferred_mime = flag;
     if (flagIsPresent<bool>("--no-progress") || flagIsPresent<bool>("-np")) progress_silent = true;
     if (flagIsPresent<bool>("--no-confirmation") || flagIsPresent<bool>("-nc")) confirmation_silent = true;
-    if (flagIsPresent<bool>("--ee")) {
-        printf("%s", formatMessage("[info]Here's some nice bachata music from Aventura! https://www.youtube.com/watch?v=RxIM2bMBhCo\n[blank]").data());
-        printf("%s", formatMessage("[info]How about some in English? https://www.youtube.com/watch?v=jnD8Av4Dl4o\n[blank]").data());
-        printf("%s", formatMessage("[info]Here's one from Romeo, the head of Aventura: https://www.youtube.com/watch?v=yjdHGmRKz08\n[blank]").data());
-        printf("%s", formatMessage("[info]This one isn't bachata but it is from Aventura: https://youtu.be/Lg_Pn45gyMs\n[blank]").data());
+    if (flagIsPresent<bool>("--bachata")) {
+        printf("%s", formatMessage("[info]Here's some nice bachata music from Aventura! [help]https://www.youtube.com/watch?v=RxIM2bMBhCo\n[blank]").data());
+        printf("%s", formatMessage("[info]How about some in English? [help]https://www.youtube.com/watch?v=jnD8Av4Dl4o\n[blank]").data());
+        printf("%s", formatMessage("[info]Here's one from Romeo, the head of Aventura: [help]https://www.youtube.com/watch?v=yjdHGmRKz08\n[blank]").data());
+        printf("%s", formatMessage("[info]This one isn't bachata but it is from Aventura: [help]https://youtu.be/Lg_Pn45gyMs\n[blank]").data());
         exit(EXIT_SUCCESS);
     }
     if (auto flag = flagIsPresent<std::string>("-c"); flag != "") clipboard_name = flag;
@@ -840,8 +857,6 @@ int main(int argc, char* argv[]) {
 
         updateGUIClipboard();
 
-        path.trimHistoryEntries();
-
         stopIndicator();
 
         deduplicate(copying.failedItems);
@@ -849,6 +864,8 @@ int main(int argc, char* argv[]) {
         showFailures();
 
         showSuccesses();
+
+        path.trimHistoryEntries();
     } catch (const std::exception& e) {
         stopIndicator();
         fprintf(stderr, internal_error_message().data(), e.what());
