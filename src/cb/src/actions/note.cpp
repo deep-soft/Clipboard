@@ -33,9 +33,9 @@ void noteText() {
         if (fs::is_regular_file(path.metadata.notes)) {
             std::string content(fileContents(path.metadata.notes));
             if (is_tty.out)
-                fprintf(stdout, formatMessage("[info]🔷 Note for this clipboard: %s\n").data(), content.data());
+                printf(formatMessage("[info]🔷 Note for this clipboard: %s\n").data(), content.data());
             else
-                fprintf(stdout, formatMessage("%s").data(), content.data());
+                printf(formatMessage("%s").data(), content.data());
         } else {
             fprintf(stderr, "%s", formatMessage("[info]🔷 There is no note for this clipboard.[blank]\n").data());
         }
