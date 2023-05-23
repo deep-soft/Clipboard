@@ -8,18 +8,18 @@
 
 <img src="documentation/readme-assets/ProductivityTools.png" alt="The fully-featured yet oh-so-easy-to-use clipboard manager for everyone." />
 
-The Clipboard Project <sub>(CB for short)</sub> is a fast and lightweight, feature packed, and user friendly tool that saves you time and effort in _style_.
+The Clipboard Project <sub>(CB for short)</sub> is the fast and lightweight, feature packed, and user friendly tool that makes you do more on the computer in _style_.
 
-With it, you'll be able to remember anything, anytime, anywhere at the literal press of a button, just like having a second brain.
+I originally made this to fix some HUGE annoyances in other tools like a frustrating user experience, strangely limited features and frankly sad compatibility.
 
-I originally made this to fix some huge annoyances in other tools like a frustrating user experience, strangely limited features and only working on one platform. But now? CB is the world's first (and currently only) complete, honest-to-goodness clipboard manager for anybody who can press keys on a keyboard.
+Now, CB is the world's first (and currently only) real, honest-to-goodness clipboard manager made for anybody who can press keys on a keyboard. Don't just take my word for it!
 
 <br>
 
 <img src="documentation/readme-assets/Features.png" alt="Just let the features speak for themselves." height=25px>
 
 - Works with text, files, directories, binary data, your goat, _anything_,
-- Infinite numbers of clipboards with unlimited capacity each,
+- An infinite number of clipboards with unlimited capacity each,
 - Seamless integration with your [existing clipboards](https://github.com/Slackadays/Clipboard/wiki/GUI-Clipboard-Compat),
 - Support for your favorite languages like español, português, and Türkçe,
 - Gorgeous <img src="documentation/readme-assets/eyecandy.svg" height="16px" alt="eye candy"/> for your viewing pleasure,
@@ -1148,6 +1148,8 @@ $ cb copy *
 # Powershell
 ```
 
+Note: By default, CB uses the C++ filesystem library function `fs::temp_directory_path()` to generate the temporary directory, prioritizing `CLIPBOARD_TMPDIR` and then `XDG_RUNTIME_DIR` respectively first if CB can get a value from them.
+
 </details>
 
 <br>
@@ -1169,6 +1171,8 @@ $ cb copy *
 > $Env:CLIPBOARD_PERSISTDIR = /home/jackson/SomeDirectory
 # Powershell
 ```
+
+Note: By default, CB uses the user's home directory to generate the persistent directory, prioritizing `CLIPBOARD_PERSISTDIR` and then `XDG_STATE_HOME` first respectively if CB can get a value from them.
 
 </details>
 
