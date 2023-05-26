@@ -1,259 +1,14 @@
-<br>
++++
+title = "Docs"
+sort_by = "weight"
+weight = 0
++++
 
-### ![The Clipboard Project](documentation/readme-assets/CBBanner.png)
+# Welcome to the Clipboard Project documentation!
 
-<br>
+This page is mostly a copy of [the readme on GitHub](https://github.com/Slackadays/Clipboard#-7), but available right here for your convenience.
 
-<br>
-
-<img src="documentation/readme-assets/ProductivityTools.png" alt="The fully-featured yet oh-so-easy-to-use clipboard manager for everyone." />
-
-The Clipboard Project <sub>(CB for short)</sub> is the fast and lightweight, feature packed, and user friendly tool that lets you do more on the computer in _style_.
-
-I originally made this to fix some HUGE annoyances in other tools like a frustrating user experience, strangely limited features and frankly sad compatibility.
-
-Now, CB is the world's first (and currently only) real, honest-to-goodness clipboard manager made for anybody who can press keys on a keyboard. Don't just take my word for it!
-
-<br>
-
-<img src="documentation/readme-assets/Features.png" alt="Just let the features speak for themselves." height=25px>
-
-- Works with text, files, directories, binary data, your goat, _anything_,
-- An infinite number of clipboards with unlimited capacity each,
-- Seamless integration with your [existing clipboards](https://github.com/Slackadays/Clipboard/wiki/GUI-Clipboard-Compat),
-- Support for your favorite languages like español, português, and Türkçe,
-- Gorgeous <img src="documentation/readme-assets/eyecandy.svg" height="16px" alt="eye candy"/> for your viewing pleasure,
-- Documentation you'll actually want to read <sub>(all in this readme)</sub>
-- And tons more!
-
-<br>
-
-<br>
-
-![CB Demo Video](documentation/readme-assets/ClipboardDemo.gif)
-
-<p align="center" id="dummy">
-    <a href="https://discord.gg/J6asnc3pEG">
-        <img src="https://img.shields.io/badge/CHAT-DISCORD-blue?style=for-the-badge&logo=discord&labelColor=rgb(55,55,55)" alt="Discord Support">
-    </a>
-    <a href="https://github.com/Slackadays/Clipboard/actions">
-        <img src="https://img.shields.io/github/actions/workflow/status/Slackadays/Clipboard/build-clipboard.yml?branch=main&label=BUILDS&style=for-the-badge&logo=githubactions&labelColor=rgb(55,55,55)">
-        <img src="https://img.shields.io/github/actions/workflow/status/slackadays/Clipboard/lint-clipboard.yml?branch=main&label=CHECKS&style=for-the-badge&labelColor=rgb(55,55,55)">
-        <img src="https://img.shields.io/github/actions/workflow/status/Slackadays/Clipboard/test-clipboard.yml?branch=main&label=TESTS&style=for-the-badge&labelColor=rgb(55,55,55)">
-    </a>
-    <a href="https://app.codecov.io/gh/Slackadays/Clipboard">
-        <img src="https://img.shields.io/codecov/c/github/slackadays/Clipboard/main?style=for-the-badge&label=COVERAGE&token=RO7KDOZ6Q2&logo=codecov&labelColor=rgb(55,55,55)">
-    </a>
-    <br>
-    <a href="https://github.com/Slackadays/Clipboard/releases">
-        <img src="https://img.shields.io/github/v/release/slackadays/clipboard?label=latest%20release&style=for-the-badge&logo=github&labelColor=rgb(55,55,55)">
-    </a>
-    <a href="https://twitter.com/GetClipboard">
-        <img src="https://img.shields.io/badge/FOLLOW-%40GETCLIPBOARD-blue?style=for-the-badge&labelColor=rgb(55,55,55)" alt="Follow us on Twitter">
-    </a>
-    <a href="https://github.com/Slackadays/Clipboard/contributors">
-        <img src="https://img.shields.io/github/contributors-anon/slackadays/clipboard?style=for-the-badge&labelColor=rgb(55,55,55)&logo=github">
-    </a>
-    <img src="https://img.shields.io/github/license/slackadays/clipboard?label=OPEN%20SOURCE&style=for-the-badge&labelColor=rgb(55,55,55)">
-</p>
-
-<br>
-
-<br>
-
-<p align="center">
-    <img src="documentation/readme-assets/GetStartedBelow.png" alt="Ready to turbocharge your productivity? Then let's get started with CB." height="100px" />
-</p>
-
-<br>
-
-<br>
-
-### ![Quick Installation](documentation/readme-assets/CBQuickInstallation.png)
-
-### <a href="https://github.com/Slackadays/Clipboard/blob/main/install.sh"><img src="documentation/readme-assets/AllExceptWindows.png" alt="All Except Windows" height=25px /></a>
-```bash
-curl -sSL https://github.com/Slackadays/Clipboard/raw/main/install.sh | sh
-```
-### <a href="https://github.com/Slackadays/Clipboard/blob/main/install.ps1"><img src="documentation/readme-assets/WindowsRunAsAdmin.png" alt="Windows (run as Administrator)" height=30px /></a>
-```powershell
-(Invoke-WebRequest -UseBasicParsing https://github.com/Slackadays/Clipboard/raw/main/install.ps1).Content | powershell
-```
-
-<br>
-<br>
-
-### <img src="documentation/readme-assets/PremadeBuilds.png" alt="Premade Builds" height=25px />
-
-<a href="https://repology.org/project/clipboard/versions"><img src="https://repology.org/badge/vertical-allrepos/clipboard.svg" alt="Packaging status" align="right"></a>
-
-**Alpine Linux** (you'll need to enable the Community packages first)
-```sh
-apk add clipboard
-```
-
-**AUR** (Use your favorite AUR helper such as `yay`. You can also get `clipboard-bin` and `clipboard-git`)
-```sh
-yay -S clipboard
-```
-
-**Gentoo GURU and LiGurOS** (For Gentoo, enable the GURU repo first)
-```sh
-emerge -av app-misc/clipboard
-```
-
-**Homebrew**
-```sh
-brew install clipboard
-```
-
-**Nix**
-```sh
-nix-env -iA nixpkgs.clipboard-jh
-```
-
-**Pacstall**
-```sh
-pacstall -I clipboard-bin
-```
-
-**Scoop**
-```powershell
-scoop install clipboard
-```
-
-**Void Linux**
-```sh
-sudo xbps-install -S clipboard
-```
-
-You can also get the latest revision of the Clipboard Project [from GitHub Actions](https://nightly.link/Slackadays/Clipboard/workflows/build-clipboard/main) or the latest release [from GitHub Releases.](https://github.com/Slackadays/Clipboard/releases/latest)
-
-<br>
-<br>
-
-### <img src="documentation/readme-assets/InstallManually.png" alt="Install Manually" height=25px />
-You'll need CMake and C++20 support, and if you want X11 and/or Wayland compatibility, you'll also need libx11 and/or libwayland plus Wayland Protocols.
-
-Get the latest release instead of the latest commit by adding `--branch 0.7.1` right after `git clone...`.
-
-Change the system installation prefix by adding `-DCMAKE_INSTALL_PREFIX=/custom/prefix` to `cmake ..`, or the library install location by adding `-DCMAKE_INSTALL_LIBDIR=/custom/dir`.
-```bash
-# First, let's download the code and go a nice place to build everything.
-$ git clone https://github.com/Slackadays/Clipboard 
-$ cd Clipboard/build
-
-# Now let's set up CMake and build CB.
-$ cmake -DCMAKE_BUILD_TYPE=MinSizeRel ..
-$ cmake --build . -j 12
-
-# Finally, let's install it onto our system.
-$ cmake --install .
-```
-
-### <img src="documentation/readme-assets/Uninstall.png" alt="Uninstall" height=25px />
-
-Remove everything listed in `install_manifest.txt`. If you're not using Windows, you can also do `xargs rm < install_manifest.txt`.
-
-<br>
-
-<br>
-
-<p align="center">
-    <img src="documentation/readme-assets/HowToUsePrompt.png" alt="Now let's start saving time and effort." height="40px" />
-</p>
-
-<br>
-
-<br>
-
-### ![How To Use](documentation/readme-assets/CBHowToUse.png)
-
-### <img src="documentation/readme-assets/Examples.png" alt="Examples" height=25px />
-
-```sh
-# Let's start by copying a file.
-$ cb copy NuclearLaunchCodes.pdf
-
-# Now, let's paste this file.
-$ cb paste
-
-# Not bad, right?
-
-# Let's make a note for this clipboard.
-$ cb note "Keep this a secret"
-
-# What if you wanted to pipe the note in?
-$ echo "Keep this a secret OR ELSE" | cb note
-
-# Now let's cut a directory to a different clipboard.
-$ cb cut69 MyDirectory
-
-# We put the 69 right after "cut" to tell CB to put MyDirectory in clipboard 69.
-
-# Let's add a file to this same clipboard.
-$ cb add69 SomeFile
-
-# To remove a file, enter its name to remove just that file.
-$ cb remove69 SomeFile
-
-# Alternatively, you can put in a regex pattern instead to generalize the removal.
-$ cb remove69 "So.*le"
-
-# Finally, let's paste what we have in clipboard 69.
-$ cb paste69
-
-# You can copy multiple files at the same time. 
-# Let's try the "_420" persistent clipboard for this one.
-$ cb copy_420 foo.bar NotAVirus.bar.mp3.exe
-
-# Like before, we can remove anything with a regex patttern.
-$ cb remove_420 "*.mp3\.exe"
-
-# Notes work exactly the same way for every clipboard.
-$ cb note_420 "Some kosher content here"
-
-# Let's look at everything we've stored in clipboard _420.
-$ cb show_420
-
-# Now let's see our original note and then clear that clipboard. 
-$ cb note
-$ cb clear
-
-# This is the same as "cb note" but for clipboard "_420" again.
-$ cb note_420
-
-# Let's shake things up. Say you have some kind of content you want to ignore.
-# This content could be anything from a password to raw binary data.
-# To ignore certain kinds of content, use a regex pattern of your choice.
-
-# Let's try this with a classic example.
-$ cb ignore "H.*2"
-
-# This pattern will ignore anything starting with "H" and ending with "2."
-
-# Now, this next command will fail because CB will ignore the content in it through the pattern.
-$ cb copy "Hunter2"
-
-# Let's get some more detailed information about our clipboards.
-$ cb info
-$ cb info69
-$ cb info_420
-
-# To wrap things up, let's get a bird's eye view of everything so far.
-$ cb
-# Doing "cb" is the exact same as "cb status."
-$ cb status
-
-# These are just a handful of examples. 
-# Check the documentation below for tons more examples of all the commands!
-```
-
-<br>
-
-### <img src="documentation/readme-assets/TheBasics.png" alt="The Basics" height=25px />
-
-Add a number to the end of your action to choose which temporary clipboard you want to use (the default is 0). Or, add `_` to use a persistent clipboard instead.
+# Actions
 
 <details><summary> &ensp; <b>Copy</b> &emsp; <code>cb [--](copy|cp)[(num)|_(id)] (file) [files]</code> or <code>(something) | cb [[--](copy|cp)][(num)|_(id)]</code></summary>
 
@@ -599,8 +354,6 @@ $ cb --clr
 
 <br>
 
-### <img src="documentation/readme-assets/MoveThingsAround.png" alt="Move Things Around" height=25px />
-
 <details><summary> &ensp; <b>Load Contents</b> &emsp; <code>cb [--](load|ld)[(num)|_(id)] [clipboard] [clipboards]</code></summary>
 
 <br>
@@ -724,8 +477,6 @@ $ cb export 1 2 3
 </details>
 
 <br>
-
-### <img src="documentation/readme-assets/SeeEverything.png" alt="See Everything" height=25px />
 
 <details><summary> &ensp; <b>Set Note</b> &emsp; <code>cb [--](note|nt)[(num)|_(id)] (text)</code> or <code>(something) | cb [[--](note|nt)][(num)|_(id)]</code></summary>
 
@@ -886,7 +637,9 @@ $ cb status | cat
 
 <br>
 
-### <img src="documentation/readme-assets/TipsAndTricks.png" alt="Tips And Tricks" height=25px />
+<br>
+
+# Action Tips and Tricks
 
 Need to paste a funky symbol somewhere a lot? Copy it to a persistent clipboard.
 ```sh
@@ -948,10 +701,6 @@ $ cb
 # Check out the other themes too!
 ```
 
-Here's what some of these themes might look like.
-
-<img src="documentation/readme-assets/CBThemes.png" width=600px />
-
 Make your own scripts that can fully automate your workflows.
 ```sh
 #!/bin/sh
@@ -969,17 +718,9 @@ cb note "Latest files from website ABCXYZ"
     
 <br>
 
-<p align="center">
-    <img src="documentation/readme-assets/CustomizeClipboard.png" alt="Let's make CB our own." height="40px" />
-</p>
+# Configuration
 
-<br>
-    
-<br>
-
-### ![Simple Configuration](documentation/readme-assets/CBSimpleConfiguration.png)
-
-### <img src="documentation/readme-assets/Flags.png" alt="Flags" height=25px />
+## Flags
 
 <details><summary> &ensp; <b><code>--all</code>, <code>-a</code></b> &emsp; Add this when clearing to clear all clipboards at once.</summary>
 
@@ -1087,7 +828,7 @@ $ cb --bachata
 <br>
 <br>
 
-### <img src="documentation/readme-assets/EnvironmentVariables.png" alt="Environment Variables" height=25px />
+## Environment Variables
 
 <details><summary> &ensp; <b><code>CI</code></b> &emsp; Set this to anything to make CB overwrite existing items without a user prompt when pasting. This variable is intended for Continuous Integration scripts where a live human is not present to make decisions.</summary>
 
@@ -1326,36 +1067,3 @@ $ cb cp "In the 1990s, though, several innovative musicians reinvigorated bachat
 </details>
  
 <br>
-<br>
-<br>
-
-### ![Need Help?](documentation/readme-assets/NeedHelp.png)
-
-We're here for you! Check out [the Clipboard Project Wiki](https://github.com/Slackadays/Clipboard/wiki) for even more information, ask all your burning questions in [GitHub Discussions](https://github.com/Slackadays/Clipboard/discussions), or join [the awesome Discord group](https://discord.gg/J6asnc3pEG)!
-
-<p align="center">
-    <a href="https://github.com/Slackadays/Clipboard/wiki"><img src="https://img.shields.io/badge/Docs-Wiki-green?style=for-the-badge&labelColor=rgb(55,55,55)" alt="CB Wiki">
-    <a href="https://github.com/Slackadays/Clipboard/discussions"><img src="https://img.shields.io/badge/Questions%3F-Ask%20Away-red?style=for-the-badge&labelColor=rgb(55,55,55)" alt="Questions? Ask Away!"></a>
-    <a href="https://discord.gg/J6asnc3pEG"><img src="https://img.shields.io/badge/CHAT-DISCORD-blue?style=for-the-badge&logo=discord&labelColor=rgb(55,55,55)" alt="Discord Chat"></a>
-    <a href="https://twitter.com/GetClipboard"><img src="https://img.shields.io/badge/FOLLOW-%40GETCLIPBOARD-blue?logo=twitter&style=for-the-badge&labelColor=rgb(55,55,55)" alt="Follow us on Twitter"></a>
-</p>
-
-<br>
-<br>
-
-### ![Thank You!](documentation/readme-assets/ThankYou.png)
-
-Say thank you to all our beautiful contributors who have helped make the Clipboard Project incredible[.](https://www.youtube.com/watch?v=yjdHGmRKz08)
- Want to join the club? We're always accepting [new contributions](https://github.com/Slackadays/Clipboard/blob/main/.github/CONTRIBUTING.md) too.
-
-And if you're feeling generous, feel free to give us a :star:! We appreciate every single one - including yours.
-    
-<br>
-
-<p align="center"> 
-    <img src="documentation/readme-assets/ClipboardMakesYourLifeEasy.png" alt="CB makes your life easy." />
-</p>
-
-<br>
-
-<p align="right"><sub><code>cb copy haters && cb > /dev/null</code></sub></p>
