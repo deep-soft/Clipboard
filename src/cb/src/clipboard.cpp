@@ -17,6 +17,7 @@
 #include <array>
 #include <atomic>
 #include <chrono>
+#include <climits>
 #include <clipboard/fork.hpp>
 #include <condition_variable>
 #include <csignal>
@@ -42,18 +43,27 @@
 #include <windows.h>
 #define isatty _isatty
 #define fileno _fileno
+#define read _read
+#define STDIN_FILENO 0
 #include "windows.hpp"
 #endif
 
 #if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <termios.h>
 #include <unistd.h>
 #endif
 
 namespace fs = std::filesystem;
 
 Forker forker {};
+
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__unix__)
+struct termios tnormal;
+#elif defined(_WIN32) || defined(_WIN64)
+DWORD dwNormalMode = 0;
+#endif
 
 GlobalFilepaths global_path;
 Clipboard path;
@@ -136,7 +146,7 @@ TerminalSize thisTerminalSize() {
 std::string fileContents(const fs::path& path) {
 #if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
     int fd = open(path.string().data(), O_RDONLY);
-    if (fd == -1) return "";
+    if (fd == -1) throw std::runtime_error("Could not open file " + path.string() + ": " + std::strerror(errno));
     std::string contents;
     std::array<char, 65536> buffer;
     ssize_t bytes_read;
@@ -208,6 +218,26 @@ void ignoreItemsPreemptively(auto& items) {
             if (std::regex_match(item.string(), regex)) items.erase(std::find(items.begin(), items.end(), item));
 }
 
+void makeTerminalRaw() {
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__unix__)
+    struct termios tnew = tnormal;
+    tnew.c_lflag &= ~(ICANON);
+    tnew.c_lflag &= ~(ECHO);
+    tnew.c_cc[VMIN] = 0;
+    tcsetattr(STDIN_FILENO, TCSANOW, &tnew);
+#elif defined(_WIN32) || defined(_WIN64)
+    SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), (dwNormalMode & ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT)));
+#endif
+}
+
+void makeTerminalNormal() {
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__unix__)
+    tcsetattr(STDIN_FILENO, TCSANOW, &tnormal);
+#elif defined(_WIN32) || defined(_WIN64)
+    SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), dwNormalMode);
+#endif
+}
+
 bool userIsARobot() {
     return !is_tty.err || !is_tty.in || !is_tty.out || getenv("CI");
 }
@@ -229,6 +259,11 @@ bool isAClearingAction() {
 bool needsANewEntry() {
     using enum Action;
     return (action == Copy || action == Cut || (action == Clear && !all_option)) && clipboard_entry == constants.default_clipboard_entry;
+}
+
+bool isARemoteSession() {
+    if (getenv("SSH_CLIENT") || getenv("SSH_TTY") || getenv("SSH_CONNECTION") || getenv("SSH_AUTH_SOCK")) return true;
+    return false;
 }
 
 [[nodiscard]] CopyPolicy userDecision(const std::string& item) {
@@ -256,7 +291,8 @@ bool needsANewEntry() {
 }
 
 void convertFromGUIClipboard(const std::string& text) {
-    if (path.holdsRawData() && fileContents(path.data.raw) == text) return;
+    if (path.holdsRawData() && (fileContents(path.data.raw) == text || text.size() == 4096 && fileContents(path.data.raw).size() > 4096))
+        return; // check if 4096b long because remote clipboard is up to 4096b long
     auto regexes = path.ignoreRegexes();
     for (const auto& regex : regexes)
         if (std::regex_match(text, regex)) return;
@@ -447,11 +483,85 @@ void setupVariables(int& argc, char* argv[]) {
     clipboard_invocation = argv[0];
 }
 
-void syncWithGUIClipboard(bool force) {
-    if ((!isAClearingAction() && clipboard_name == constants.default_clipboard_name && clipboard_entry == constants.default_clipboard_entry && !getenv("CLIPBOARD_NOGUI"))
-        || (force && !getenv("CLIPBOARD_NOGUI"))) {
-        using enum ClipboardContentType;
-        auto content = getGUIClipboard(preferred_mime);
+void setupTerminal() {
+#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__unix__)
+    tcgetattr(STDIN_FILENO, &tnormal);
+#elif defined(_WIN64) || defined(_WIN32)
+    GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &dwNormalMode);
+#endif
+}
+
+ClipboardContent getRemoteClipboard() {
+    if (!isARemoteSession() || !is_tty.out) return {};
+
+    std::string response;
+
+    auto requestAndReadResponse = [&] {
+        printf("\033]52;c;?\007");
+        fflush(stdout);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(80));
+
+        std::array<char, 65536> buffer;
+        size_t n = 0;
+        while ((n = read(STDIN_FILENO, buffer.data(), buffer.size())) > 0)
+            response += std::string(buffer.data(), n);
+    };
+
+    makeTerminalRaw();
+
+    requestAndReadResponse();
+
+    makeTerminalNormal();
+
+    // std::cerr << "response: " << response << std::endl;
+
+    // remove terminal control characters
+    response = response.substr(response.find_last_of(';') + 1);
+    response = response.substr(0, response.size() - 2); // remove the \007 character and something before it
+
+    if (response.empty()) return {};
+
+    // std::cerr << "response character 2 ID: " << static_cast<int>(response.at(1)) << std::endl;
+    // std::cerr << "response: " << response << std::endl;
+    // std::cerr << "response size: " << response.size() << std::endl;
+
+    auto fromBase64 = [](const std::string_view& content) {
+        static_assert(CHAR_BIT == 8);
+        constexpr std::string_view convertToChar("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/");
+        std::string output;
+        output.reserve(content.size() * 3 / 4);
+        for (size_t i = 0; i < content.size(); i += 4) {
+            auto first = content.at(i);
+            auto second = content.at(i + 1);
+            auto byte = static_cast<char>((convertToChar.find(first) << 2) | (convertToChar.find(second) >> 4));
+            output += byte;
+            if (i + 2 < content.size() && content.at(i + 2) != '=') {
+                auto third = content.at(i + 2);
+                byte = static_cast<char>(((convertToChar.find(second) & 0x0F) << 4) | (convertToChar.find(third) >> 2));
+                output += byte;
+                if (i + 3 < content.size() && content.at(i + 3) != '=') {
+                    auto fourth = content.at(i + 3);
+                    byte = static_cast<char>(((convertToChar.find(third) & 0x03) << 6) | convertToChar.find(fourth));
+                    output += byte;
+                }
+            }
+        }
+        return output;
+    };
+
+    // std::cerr << "content: " << fromBase64(response) << std::endl;
+    // std::cerr << "content size: " << fromBase64(response).size() << std::endl;
+
+    return ClipboardContent(fromBase64(response));
+}
+
+void syncWithExternalClipboards(bool force) {
+    using enum ClipboardContentType;
+    if ((!isAClearingAction() && clipboard_name == constants.default_clipboard_name && clipboard_entry == constants.default_clipboard_entry) || force) {
+        ClipboardContent content;
+        if (!getenv("CLIPBOARD_NOREMOTE")) content = getRemoteClipboard();
+        if (content.type() == Empty && !getenv("CLIPBOARD_NOGUI")) content = getGUIClipboard(preferred_mime);
         if (content.type() == Text) {
             convertFromGUIClipboard(content.text());
             copying.mime = !content.mime().empty() ? content.mime() : inferMIMEType(content.text()).value_or("text/plain");
@@ -585,9 +695,14 @@ void checkForNoItems() {
 void setupIndicator() {
     if (!is_tty.err || output_silent || progress_silent) return;
 
-    fprintf(stderr, "\033]0;%s - Clipboard\007", doing_action[action].data()); // set the terminal title
-    fprintf(stderr, "\033[?25l");                                              // hide the cursor
-    fflush(stderr);
+    bool hasFocus = true;
+
+    makeTerminalRaw();
+
+    printf("\033]0;%s - Clipboard\007", doing_action[action].data()); // set the terminal title
+    printf("\033[?25l");                                              // hide the cursor
+    printf("\033[?1004h");                                            // enable focus tracking
+    fflush(stdout);
 
     std::unique_lock<std::mutex> lock(m);
     int output_length = 0;
@@ -595,6 +710,13 @@ void setupIndicator() {
                                                           "   ╺╸     ", "    ━     ", "    ╺╸    ", "     ━    ", "     ╺╸   ", "      ━   ", "      ╺╸  ", "       ━  ",
                                                           "       ╺╸ ", "        ━ ", "        ╺╸", "         ━", "         ╺", "          "};
     int step = 0;
+    auto poll_focus = [&] {
+        std::array<char, 16> buf;
+        if (read(STDIN_FILENO, buf.data(), buf.size()) >= 3) {
+            if (buf.at(0) == '\033' && buf.at(1) == '[' && buf.at(2) == 'I') hasFocus = true;
+            if (buf.at(0) == '\033' && buf.at(1) == '[' && buf.at(2) == 'O') hasFocus = false;
+        }
+    };
     auto display_progress = [&](const auto& formattedNum) {
         output_length = fprintf(stderr, working_message().data(), doing_action[action].data(), formattedNum, spinner_steps.at(step).data());
         fflush(stderr);
@@ -620,11 +742,20 @@ void setupIndicator() {
         else
             display_progress("");
 
+        poll_focus();
+
         step == 21 ? step = 0 : step++;
     }
+
+    printf("\033[?25h");           // restore the cursor
+    printf("\033[?1004l");         // disable focus tracking
+    if (!hasFocus) printf("\007"); // play a bell sound if the terminal doesn't have focus
+    fflush(stdout);
     fprintf(stderr, "\r%*s\r", output_length, "");
-    fprintf(stderr, "\033[?25h"); // restore the cursor
     fflush(stderr);
+
+    makeTerminalNormal();
+
     if (progress_state == IndicatorState::Cancel) {
         if (io_type == IOType::File)
             fprintf(stderr, cancelled_with_progress_message().data(), actions[action].data(), percent_done().data());
@@ -771,38 +902,43 @@ std::string getMIMEType() {
 }
 
 void writeToRemoteClipboard(const ClipboardContent& content) {
-    if (content.type() != ClipboardContentType::Text) return;
-    auto isARemoteSession = [] {
-        if (getenv("SSH_CLIENT") || getenv("SSH_TTY") || getenv("SSH_CONNECTION") || getenv("SSH_AUTH_SOCK")) return true;
-        return false;
-    };
-    if (!isARemoteSession()) return;
+    if (content.type() != ClipboardContentType::Text || !isARemoteSession()) {
+        printf("\033]52;c;\007");
+        fflush(stdout);
+        return;
+    }
     auto toBase64 = [](const std::string_view& content) {
-        std::string_view convertToChar("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/");
+        static_assert(CHAR_BIT == 8);
+        constexpr std::string_view convertToChar("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/");
         std::string output;
+        output.reserve(4 * ((content.size() + 2) / 3));
         for (size_t i = 0; i < content.size(); i += 3) {
             auto first = static_cast<unsigned char>(content.at(i));
-            output.append(1, convertToChar.at(first >> 2));
+            output += convertToChar.at(first >> 2);
             if (i + 1 < content.size()) {
                 auto second = static_cast<unsigned char>(content.at(i + 1));
-                output.append(1, convertToChar.at(((first & 0x03) << 4) | (second >> 4)));
+                output += convertToChar.at(((first & 0x03) << 4) | (second >> 4));
                 if (i + 2 < content.size()) {
                     auto third = static_cast<unsigned char>(content.at(i + 2));
-                    output.append(1, convertToChar.at(((second & 0x0F) << 2) | (third >> 6)));
-                    output.append(1, convertToChar.at(third & 0x3F));
+                    output += convertToChar.at(((second & 0x0F) << 2) | (third >> 6));
+                    output += convertToChar.at(third & 0x3F);
                 } else {
-                    output.append(1, convertToChar.at((second & 0x0F) << 2));
-                    output.append("=");
+                    output += convertToChar.at((second & 0x0F) << 2);
+                    output += "=";
                 }
             } else {
-                output.append(1, convertToChar.at((first & 0x03) << 4));
-                output.append("==");
+                output += convertToChar.at((first & 0x03) << 4);
+                output += "==";
             }
         }
         return output;
     };
     printf("\033]52;c;\007"); // clear clipboard first
-    printf("\033]52;c;%s\007", toBase64(content.text().substr(0, 8192)).data());
+    if (auto term = getenv("TERM"); term && !strcmp(term, "xterm-kitty")) {
+        for (size_t i = 0; i < content.text().size(); i += 4096) // kitty has a limit of 4096 bytes per write
+            printf("\033]52;c;%s\007", toBase64(content.text().substr(i, 4096)).data());
+    } else
+        printf("\033]52;c;%s\007", toBase64(content.text()).data());
     fflush(stdout);
 }
 
@@ -810,7 +946,7 @@ void updateExternalClipboards(bool force) {
     if ((isAWriteAction() && clipboard_name == constants.default_clipboard_name) || force) { // only update GUI clipboard on write operations
         auto thisContent = thisClipboard();
         if (!getenv("CLIPBOARD_NOGUI")) writeToGUIClipboard(thisContent);
-        writeToRemoteClipboard(thisContent);
+        if (!getenv("CLIPBOARD_NOREMOTE")) writeToRemoteClipboard(thisContent);
     }
 }
 
@@ -862,6 +998,8 @@ int main(int argc, char* argv[]) {
 
         setupVariables(argc, argv);
 
+        setupTerminal();
+
         setLocale();
 
         setClipboardAttributes();
@@ -882,7 +1020,7 @@ int main(int argc, char* argv[]) {
 
         startIndicator();
 
-        syncWithGUIClipboard();
+        syncWithExternalClipboards();
 
         ignoreItemsPreemptively(copying.items);
 
