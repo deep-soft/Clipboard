@@ -43,8 +43,6 @@
 #include <windows.h>
 #define isatty _isatty
 #define fileno _fileno
-#define read _read
-#define STDIN_FILENO 0
 #include "windows.hpp"
 #endif
 
@@ -116,18 +114,6 @@ std::array<std::pair<std::string_view, std::string_view>, 7> colors = {
 #if defined(_WIN64) || defined(_WIN32)
 UINT old_code_page;
 #endif
-
-bool stopIndicator(bool change_condition_variable) {
-    IndicatorState expect = IndicatorState::Active;
-
-    if (!change_condition_variable) return progress_state.exchange(IndicatorState::Cancel) == expect;
-
-    if (!progress_state.compare_exchange_strong(expect, IndicatorState::Done)) return false;
-
-    cv.notify_one();
-    indicator.join();
-    return true;
-}
 
 TerminalSize thisTerminalSize() {
 #if defined(_WIN32) || defined(_WIN64)
@@ -237,10 +223,6 @@ bool userIsARobot() {
     return !is_tty.err || !is_tty.in || !is_tty.out || getenv("CI");
 }
 
-bool action_is_one_of(auto... options) {
-    return ((action == options) || ...);
-}
-
 bool isAWriteAction() {
     using enum Action;
     return action_is_one_of(Cut, Copy, Add, Clear, Remove, Swap, Load, Import, Edit);
@@ -254,11 +236,6 @@ bool isAClearingAction() {
 bool needsANewEntry() {
     using enum Action;
     return (action == Copy || action == Cut || (action == Clear && !all_option)) && clipboard_entry == constants.default_clipboard_entry;
-}
-
-bool isARemoteSession() {
-    if (getenv("SSH_CLIENT") || getenv("SSH_TTY") || getenv("SSH_CONNECTION")) return true;
-    return false;
 }
 
 [[nodiscard]] CopyPolicy userDecision(const std::string& item) {
@@ -283,95 +260,6 @@ bool isARemoteSession() {
         else
             fprintf(stderr, "%s", bad_response_message().data());
     }
-}
-
-void convertFromGUIClipboard(const std::string& text) {
-    if (fs::exists(path.data.raw) && (fileContents(path.data.raw) == text || text.size() == 4096 && fileContents(path.data.raw).size() > 4096))
-        return; // check if 4096b long because remote clipboard is up to 4096b long
-    auto regexes = path.ignoreRegexes();
-    for (const auto& regex : regexes)
-        if (std::regex_match(text, regex)) return;
-    path.makeNewEntry();
-    writeToFile(path.data.raw, text);
-}
-
-void convertFromGUIClipboard(const ClipboardPaths& clipboard) {
-    auto regexes = path.ignoreRegexes();
-    auto paths = clipboard.paths();
-    for (const auto& regex : regexes)
-        for (auto&& path : paths)
-            if (std::regex_match(path.filename().string(), regex)) paths.erase(std::find(paths.begin(), paths.end(), path));
-
-    // Only clear the temp directory if all files in the clipboard are outside the temp directory
-    // This avoids the situation where we delete the very files we're trying to copy
-    auto filesHaveChanged = std::all_of(paths.begin(), paths.end(), [](auto& path) {
-        auto filename = path.filename().empty() ? path.parent_path().filename() : path.filename();
-        // check if the filename of the provided path does not exist in the temp directory
-        if (!fs::exists(::path.data / filename)) return true;
-
-        // check if the file sizes are different if it's not a directory
-        if (!fs::is_directory(path) && fs::file_size(path) != fs::file_size(::path.data / filename)) return true;
-
-        // check if the file contents are different if it's not a directory
-        if (!fs::is_directory(path) && fileContents(path) != fileContents(::path.data / filename)) return true;
-
-        return false;
-    });
-
-    auto eligibleForCopying = std::all_of(paths.begin(), paths.end(), [](auto& path) {
-        if (!fs::exists(path)) return false;
-        return true;
-    });
-
-    if (filesHaveChanged && eligibleForCopying && !paths.empty()) path.makeNewEntry();
-
-    for (auto&& path : paths) {
-        if (!fs::exists(path)) continue;
-
-        auto target = ::path.data / path.filename();
-
-        if (fs::exists(target) && fs::equivalent(path, target)) continue;
-
-        try {
-            fs::copy(path, target, copying.opts | fs::copy_options::create_hard_links);
-        } catch (const fs::filesystem_error& e) {
-            try {
-                fs::copy(path, target, copying.opts);
-            } catch (const fs::filesystem_error& e) {} // Give up
-        }
-    }
-
-    if (clipboard.action() == ClipboardPathsAction::Cut) {
-        std::ofstream originalFiles {path.metadata.originals};
-        for (auto&& path : paths)
-            originalFiles << path.string() << std::endl;
-    }
-}
-
-[[nodiscard]] ClipboardContent thisClipboard() {
-    Clipboard default_cb(constants.default_clipboard_name);
-    if (fs::exists(default_cb.metadata.originals) && GUIClipboardSupportsCut) {
-        std::vector<fs::path> files;
-
-        for (const auto& line : fileLines(default_cb.metadata.originals))
-            files.emplace_back(line);
-
-        return {std::move(files), ClipboardPathsAction::Cut};
-    }
-
-    if (!copying.buffer.empty()) return {copying.buffer, copying.mime};
-
-    if (default_cb.holdsRawData()) return {fileContents(default_cb.data.raw), std::string(inferMIMEType(fileContents(default_cb.data.raw)).value_or("text/plain"))};
-
-    if (!copying.items.empty()) {
-        std::vector<fs::path> paths;
-
-        paths.assign(fs::directory_iterator(default_cb.data), fs::directory_iterator {});
-
-        return ClipboardContent(ClipboardPaths(std::move(paths)));
-    }
-
-    return {};
 }
 
 void setupHandlers() {
@@ -484,88 +372,6 @@ void setupTerminal() {
 #elif defined(_WIN64) || defined(_WIN32)
     GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &dwNormalMode);
 #endif
-}
-
-ClipboardContent getRemoteClipboard() {
-    if (!isARemoteSession() || !is_tty.out) return {};
-
-    std::string response;
-
-    auto requestAndReadResponse = [&] {
-        printf("\033]52;c;?\007");
-        fflush(stdout);
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(80));
-
-        std::array<char, 65536> buffer;
-        size_t n = 0;
-        while ((n = read(STDIN_FILENO, buffer.data(), buffer.size())) > 0)
-            response += std::string(buffer.data(), n);
-    };
-
-    makeTerminalRaw();
-
-    requestAndReadResponse();
-
-    makeTerminalNormal();
-
-    // std::cerr << "response: " << response << std::endl;
-
-    // remove terminal control characters
-    response = response.substr(response.find_last_of(';') + 1);
-    response = response.substr(0, response.size() - 2); // remove the \007 character and something before it
-
-    if (response.empty()) return {};
-
-    // std::cerr << "response character 2 ID: " << static_cast<int>(response.at(1)) << std::endl;
-    // std::cerr << "response: " << response << std::endl;
-    // std::cerr << "response size: " << response.size() << std::endl;
-
-    auto fromBase64 = [](const std::string_view& content) {
-        static_assert(CHAR_BIT == 8);
-        constexpr std::string_view convertToChar("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/");
-        std::string output;
-        output.reserve(content.size() * 3 / 4);
-        for (size_t i = 0; i < content.size(); i += 4) {
-            auto first = content.at(i);
-            auto second = content.at(i + 1);
-            auto byte = static_cast<char>((convertToChar.find(first) << 2) | (convertToChar.find(second) >> 4));
-            output += byte;
-            if (i + 2 < content.size() && content.at(i + 2) != '=') {
-                auto third = content.at(i + 2);
-                byte = static_cast<char>(((convertToChar.find(second) & 0x0F) << 4) | (convertToChar.find(third) >> 2));
-                output += byte;
-                if (i + 3 < content.size() && content.at(i + 3) != '=') {
-                    auto fourth = content.at(i + 3);
-                    byte = static_cast<char>(((convertToChar.find(third) & 0x03) << 6) | convertToChar.find(fourth));
-                    output += byte;
-                }
-            }
-        }
-        return output;
-    };
-
-    // std::cerr << "content: " << fromBase64(response) << std::endl;
-    // std::cerr << "content size: " << fromBase64(response).size() << std::endl;
-
-    return ClipboardContent(fromBase64(response));
-}
-
-void syncWithExternalClipboards(bool force) {
-    using enum ClipboardContentType;
-    if ((!isAClearingAction() && clipboard_name == constants.default_clipboard_name && clipboard_entry == constants.default_clipboard_entry) || force) {
-        ClipboardContent content;
-        if (!getenv("CLIPBOARD_NOREMOTE")) content = getRemoteClipboard();
-        if (content.type() == Empty && !getenv("CLIPBOARD_NOGUI")) content = getGUIClipboard(preferred_mime);
-        if (content.type() == Text) {
-            convertFromGUIClipboard(content.text());
-            copying.mime = !content.mime().empty() ? content.mime() : inferMIMEType(content.text()).value_or("text/plain");
-        } else if (content.type() == Paths) {
-            convertFromGUIClipboard(content.paths());
-            copying.mime = !content.mime().empty() ? content.mime() : "text/uri-list";
-        }
-        available_mimes = content.availableTypes();
-    }
 }
 
 template <typename T>
@@ -685,91 +491,6 @@ void checkForNoItems() {
         PerformAction::status();
         exit(EXIT_SUCCESS);
     }
-}
-
-void setupIndicator() {
-    if (!is_tty.err || output_silent || progress_silent) return;
-
-    bool hasFocus = true;
-
-    makeTerminalRaw();
-
-    fprintf(stderr, "\033]0;%s - Clipboard\007", doing_action[action].data()); // set the terminal title
-    fprintf(stderr, "\033[?25l");                                              // hide the cursor
-    if (is_tty.out) printf("\033[?1004h");                                     // enable focus tracking
-    fflush(stdout);
-    fflush(stderr);
-
-    std::unique_lock<std::mutex> lock(m);
-    int output_length = 0;
-    const std::array<std::string_view, 22> spinner_steps {"╸         ", "━         ", "╺╸        ", " ━        ", " ╺╸       ", "  ━       ", "  ╺╸      ", "   ━      ",
-                                                          "   ╺╸     ", "    ━     ", "    ╺╸    ", "     ━    ", "     ╺╸   ", "      ━   ", "      ╺╸  ", "       ━  ",
-                                                          "       ╺╸ ", "        ━ ", "        ╺╸", "         ━", "         ╺", "          "};
-    int step = 0;
-    auto poll_focus = [&] {
-        std::array<char, 16> buf;
-        if (read(STDIN_FILENO, buf.data(), buf.size()) >= 3) {
-            if (buf.at(0) == '\033' && buf.at(1) == '[' && buf.at(2) == 'I') hasFocus = true;
-            if (buf.at(0) == '\033' && buf.at(1) == '[' && buf.at(2) == 'O') hasFocus = false;
-        }
-    };
-    auto display_progress = [&](const auto& formattedNum) {
-        output_length = fprintf(stderr, working_message().data(), doing_action[action].data(), formattedNum, spinner_steps.at(step).data());
-        fflush(stderr);
-        cv.wait_for(lock, std::chrono::milliseconds(20), [&] { return progress_state != IndicatorState::Active; });
-    };
-    auto itemsToProcess = [&] {
-        return std::distance(fs::directory_iterator(path.data), fs::directory_iterator());
-    };
-    while (clipboard_state == ClipboardState::Setup && progress_state == IndicatorState::Active) {
-        display_progress("");
-        step == 21 ? step = 0 : step++;
-    }
-    static size_t items_size = action_is_one_of(Action::Cut, Action::Copy) ? copying.items.size() : itemsToProcess();
-    if (items_size == 0) items_size++;
-    auto percent_done = [&] {
-        return std::to_string(((successes.files + successes.directories + copying.failedItems.size()) * 100) / items_size) + "%";
-    };
-    while (clipboard_state == ClipboardState::Action && progress_state == IndicatorState::Active) {
-        if (io_type == IOType::File)
-            display_progress(percent_done().data());
-        else if (io_type == IOType::Pipe)
-            display_progress(formatBytes(successes.bytes.load(std::memory_order_relaxed)).data());
-        else
-            display_progress("");
-
-        poll_focus();
-
-        step == 21 ? step = 0 : step++;
-    }
-
-    fprintf(stderr, "\033[?25h");          // restore the cursor
-    if (is_tty.out) printf("\033[?1004l"); // disable focus tracking
-    if (!hasFocus) printf("\007");         // play a bell sound if the terminal doesn't have focus
-    fflush(stdout);
-    fprintf(stderr, "\r%*s\r", output_length, "");
-    fflush(stderr);
-
-    makeTerminalNormal();
-
-    if (progress_state == IndicatorState::Cancel) {
-        if (io_type == IOType::File)
-            fprintf(stderr, cancelled_with_progress_message().data(), actions[action].data(), percent_done().data());
-        else if (io_type == IOType::Pipe)
-            fprintf(stderr, cancelled_with_progress_message().data(), actions[action].data(), formatBytes(successes.bytes.load(std::memory_order_relaxed)).data());
-        else
-            fprintf(stderr, cancelled_message().data(), actions[action].data());
-        fflush(stderr);
-        path.releaseLock();
-        _exit(EXIT_FAILURE);
-    }
-    fflush(stderr);
-}
-
-void startIndicator() { // If cancelled, leave cancelled
-    IndicatorState expect = IndicatorState::Done;
-    progress_state.compare_exchange_strong(expect, IndicatorState::Active);
-    indicator = std::thread(setupIndicator);
 }
 
 unsigned long long totalItemSize() {
@@ -895,56 +616,6 @@ std::string getMIMEType() {
         return std::string(inferMIMEType(copying.buffer).value_or("text/plain"));
     }
     return "text/plain";
-}
-
-void writeToRemoteClipboard(const ClipboardContent& content) {
-    if (!isARemoteSession()) return;
-    if (content.type() != ClipboardContentType::Text) {
-        printf("\033]52;c;\007");
-        fflush(stdout);
-        return;
-    }
-    auto toBase64 = [](const std::string_view& content) {
-        static_assert(CHAR_BIT == 8);
-        constexpr std::string_view convertToChar("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/");
-        std::string output;
-        output.reserve(4 * ((content.size() + 2) / 3));
-        for (size_t i = 0; i < content.size(); i += 3) {
-            auto first = static_cast<unsigned char>(content.at(i));
-            output += convertToChar.at(first >> 2);
-            if (i + 1 < content.size()) {
-                auto second = static_cast<unsigned char>(content.at(i + 1));
-                output += convertToChar.at(((first & 0x03) << 4) | (second >> 4));
-                if (i + 2 < content.size()) {
-                    auto third = static_cast<unsigned char>(content.at(i + 2));
-                    output += convertToChar.at(((second & 0x0F) << 2) | (third >> 6));
-                    output += convertToChar.at(third & 0x3F);
-                } else {
-                    output += convertToChar.at((second & 0x0F) << 2);
-                    output += "=";
-                }
-            } else {
-                output += convertToChar.at((first & 0x03) << 4);
-                output += "==";
-            }
-        }
-        return output;
-    };
-    printf("\033]52;c;\007"); // clear clipboard first
-    if (auto term = getenv("TERM"); term && !strcmp(term, "xterm-kitty")) {
-        for (size_t i = 0; i < content.text().size(); i += 4096) // kitty has a limit of 4096 bytes per write
-            printf("\033]52;c;%s\007", toBase64(content.text().substr(i, 4096)).data());
-    } else
-        printf("\033]52;c;%s\007", toBase64(content.text()).data());
-    fflush(stdout);
-}
-
-void updateExternalClipboards(bool force) {
-    if ((isAWriteAction() && clipboard_name == constants.default_clipboard_name) || force) { // only update GUI clipboard on write operations
-        auto thisContent = thisClipboard();
-        if (!getenv("CLIPBOARD_NOGUI")) writeToGUIClipboard(thisContent);
-        if (!getenv("CLIPBOARD_NOREMOTE")) writeToRemoteClipboard(thisContent);
-    }
 }
 
 void showFailures() {

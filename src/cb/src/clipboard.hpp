@@ -108,7 +108,7 @@ static auto thisPID() {
 }
 
 static size_t directoryOverhead(const fs::path& directory) {
-#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__) || defined(__FreeBSD__)
     struct stat info;
     if (stat(directory.string().data(), &info) != 0) return 0;
     return info.st_size;
@@ -120,7 +120,11 @@ static size_t directoryOverhead(const fs::path& directory) {
 static size_t totalDirectorySize(const fs::path& directory) {
     size_t size = directoryOverhead(directory);
     for (const auto& entry : fs::recursive_directory_iterator(directory))
-        size += entry.is_directory() ? directoryOverhead(entry) : entry.file_size();
+        try {
+            size += entry.is_directory() ? directoryOverhead(entry) : entry.file_size();
+        } catch (const fs::filesystem_error& e) {
+            if (e.code() != std::errc::no_such_file_or_directory) throw e;
+        }
     return size;
 }
 
@@ -206,6 +210,10 @@ extern EnumArray<std::string_view, 18> doing_action;
 extern EnumArray<std::string_view, 18> did_action;
 
 extern std::array<std::pair<std::string_view, std::string_view>, 7> colors;
+
+bool action_is_one_of(auto... options) {
+    return ((action == options) || ...);
+}
 
 class TerminalSize {
 public:
@@ -574,9 +582,12 @@ void setLanguageTR();
 void setLanguageES();
 void setupHandlers();
 void setupTerminal();
+bool isAClearingAction();
 void setClipboardAttributes();
 void setFlags();
 void setFilepaths();
+void makeTerminalRaw();
+void makeTerminalNormal();
 Action getAction();
 IOType getIOType();
 void verifyAction();
