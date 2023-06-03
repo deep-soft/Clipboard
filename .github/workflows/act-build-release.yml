@@ -1,0 +1,523 @@
+# 2023-06-03 13:50
+name: act - Clipboard Builds - release
+
+on:
+  workflow_dispatch:
+# [ push, pull_request ]
+
+env:
+  TAG_NAME: clipboard-release
+  PRG_NAME: clipboard
+
+jobs:
+  linux_x11_wayland:
+    strategy:
+      fail-fast: false
+      matrix:
+        gcc: [ 12 ]
+        arch:
+#          - { os: i386      , gcc: i686-linux-gnu         , needs_ports: "0" }
+          - { os: amd64     , gcc: x86_64-linux-gnu       , needs_ports: "0" }
+          - { os: arm64     , gcc: aarch64-linux-gnu      , needs_ports: "1" }
+          - { os: riscv64   , gcc: riscv64-linux-gnu      , needs_ports: "1" }
+          - { os: armhf     , gcc: arm-linux-gnueabihf    , needs_ports: "1" }
+          - { os: ppc64el   , gcc: powerpc64le-linux-gnu  , needs_ports: "1" }
+#          - { os: s390x     , gcc: s390x-linux-gnu        , needs_ports: "1" }
+
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run a script
+        run: |
+          GPP_PACKAGE="g++-${{ matrix.gcc }}-${{ matrix.arch.gcc }}"
+          if [[ "${{ matrix.arch.gcc }}" == "$(uname --processor)-linux-gnu" ]]; then          
+            GPP_PACKAGE="g++-${{ matrix.gcc }}"
+          fi
+          
+          if [[ "${{ matrix.arch.needs_ports }}" == "1" ]]; then
+            sudo echo "deb [arch=${{ matrix.arch.os }}] http://ports.ubuntu.com/ $(lsb_release -sc) main multiverse universe" | sudo tee -a /etc/apt/sources.list
+            sudo echo "deb [arch=${{ matrix.arch.os }}] http://ports.ubuntu.com/ $(lsb_release -sc)-updates main multiverse universe" | sudo tee -a /etc/apt/sources.list
+            sudo echo "deb [arch=${{ matrix.arch.os }}] http://ports.ubuntu.com/ $(lsb_release -sc)-security main multiverse universe" | sudo tee -a /etc/apt/sources.list
+            sudo echo "deb [arch=${{ matrix.arch.os }}] http://ports.ubuntu.com/ $(lsb_release -sc)-backports main multiverse universe" | sudo tee -a /etc/apt/sources.list
+          fi
+          
+          # This limits apt to only looking or amd64 and i386 from Azure, see https://github.com/actions/virtual-environments/issues/1961
+          sudo sed -i'' -E 's/^deb http:\/\/(azure.archive|security).ubuntu.com/deb [arch=amd64,i386] http:\/\/\1.ubuntu.com/' /etc/apt/sources.list
+
+          sudo dpkg --add-architecture "${{ matrix.arch.os }}"
+          sudo apt-get update
+          sudo apt-get install -y \
+            "${GPP_PACKAGE}" \
+            "libx11-dev:${{ matrix.arch.os }}" \
+            "libwayland-dev:${{ matrix.arch.os }}" \
+            "wayland-protocols:${{ matrix.arch.os }}"
+          
+          cd build
+          
+          cmake .. \
+            "-DCMAKE_CXX_COMPILER=${{ matrix.arch.gcc }}-g++-${{ matrix.gcc }}" \
+            "-DCMAKE_C_COMPILER=${{ matrix.arch.gcc }}-gcc-${{ matrix.gcc }}" \
+            "-DCMAKE_BUILD_TYPE=MinSizeRel"
+          
+          cmake --build . -j 4
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.PRG_NAME }}-linux-${{ matrix.arch.os }}
+          path: build/output
+
+      - name: Publish Release pre 1
+        shell: bash
+        run: |
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
+          echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
+
+      - name: Publish Release pre 2
+        shell: bash
+        run: |
+          touch "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          pwd
+          ls -l
+          cd ./build/output/bin/
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd
+          pwd
+          ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd "${{ env.WORK_DIR }}"
+
+      - name: Publish Release
+        uses: deep-soft/action-gh-release@v1
+        with:
+          draft: true
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            ${{ env.ASSET_REL }}
+
+  flatpak-amd64:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run a script
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libwayland-dev wayland-protocols g++-12 gcc-12 flatpak-builder flatpak
+          cd build
+          cmake .. \
+            "-DCMAKE_CXX_COMPILER=g++-12" \
+            "-DCMAKE_C_COMPILER=gcc-12" \
+            "-DCMAKE_BUILD_TYPE=MinSizeRel"
+          cmake --build . -j 4
+          cp ../app.getclipboard.Clipboard.* .
+          cp output/bin/* .
+          cp output/lib/* .
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user --noninteractive flathub org.freedesktop.Platform//22.08 org.freedesktop.Sdk//22.08
+          flatpak-builder --repo=repo --force-clean build-dir app.getclipboard.Clipboard.yml
+          flatpak build-bundle repo clipboard-flatpak-amd64.flatpak app.getclipboard.Clipboard
+          echo -e "After you install the Clipboard Project through this Flatpak, you'll likely be able to run it with the command \"flatpak run app.getclipboard.Clipboard\". \nHowever, this is long and hard to remember, and Flatpak doesn't yet offer a built-in solution so that you can just use \"cb\". \nSo, to work around this issue, run the command \"alias cb='flatpak run app.getclipboard.Clipboard'\" so that the command \"cb\" does what you expect. \nAdd that command to your terminal startup file like .bashrc so that it works every time you start the terminal." > clipboard-flatpak-READ_THIS_AFTER_INSTALLING.txt
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: clipboard-flatpak-amd64
+          path: |
+            build/clipboard-flatpak-amd64.flatpak
+            build/clipboard-flatpak-READ_THIS_AFTER_INSTALLING.txt
+
+      - name: Publish Release
+        uses: deep-soft/action-gh-release@v1
+        with:
+          draft: true
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            build/clipboard-flatpak-amd64.flatpak
+            build/clipboard-flatpak-READ_THIS_AFTER_INSTALLING.txt
+
+  macos-arm64-amd64:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - { os: x86_64,  target: x86_64-macos-amd64       }
+
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run a script
+        run: |
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel
+          cmake --build . -j 3
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.PRG_NAME }}-macos-arm64-amd64
+          path: build/output
+
+      - name: Publish Release pre 1
+        shell: bash
+        run: |
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
+          echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
+
+      - name: Publish Release pre 2
+        shell: bash
+        run: |
+          touch "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          pwd
+          ls -l
+          cd ./build/output/bin/
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd
+          pwd
+          ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd "${{ env.WORK_DIR }}"
+
+      - name: Publish Release
+        uses: deep-soft/action-gh-release@v1
+        with:
+          draft: true
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            ${{ env.ASSET_REL }}
+
+  windows-amd64:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - { os: x86_64,  target: x86_64-windows-amd64     }
+
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run a script
+        run: |
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel
+          cmake --build . --config Release -j 3
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.PRG_NAME }}-windows-amd64
+          path: build/output
+
+      - name: Publish Release pre 1
+        shell: bash
+        run: |
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
+          echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
+
+      - name: Publish Release pre 2
+        shell: bash
+        run: |
+          touch "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          pwd
+          ls -l
+          cd ./build/output/bin/
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd
+          pwd
+          ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd "${{ env.WORK_DIR }}"
+
+      - name: Publish Release
+        uses: deep-soft/action-gh-release@v1
+        with:
+          draft: true
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            ${{ env.ASSET_REL }}
+
+  windows-arm64:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - { os: aarch64, target: aarch64-windows-arm64    }
+
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run a script
+        run: |
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_GENERATOR_PLATFORM=ARM64
+          cmake --build . --config Release -j 3
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.PRG_NAME }}-windows-arm64
+          path: build/output
+
+      - name: Publish Release pre 1
+        shell: bash
+        run: |
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
+          echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
+
+      - name: Publish Release pre 2
+        shell: bash
+        run: |
+          touch "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          pwd
+          ls -l
+          cd ./build/output/bin/
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd
+          pwd
+          ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd "${{ env.WORK_DIR }}"
+
+      - name: Publish Release
+        uses: deep-soft/action-gh-release@v1
+        with:
+          draft: true
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            ${{ env.ASSET_REL }}
+
+  freebsd-amd64:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - { os: x86_64,  target: x86_64-freebsd-amd64     }
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run a script
+        uses: cross-platform-actions/action@v0.13.0
+        with:
+          operating_system: freebsd
+          architecture: x86-64
+          version: '13.1'
+          shell: bash
+          run: |
+            # sudo pkg install -y cmake llvm15-15.0.7_3 xorg wayland
+            sudo pkg install -y cmake llvm15 xorg wayland
+            cd build
+            cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_C_COMPILER=clang15 -DCMAKE_CXX_COMPILER=clang++15 -DNO_X11=1
+            cmake --build . -j 2
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.PRG_NAME }}-freebsd-amd64
+          path: build/output
+
+      - name: Publish Release pre 1
+        shell: bash
+        run: |
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
+          echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
+
+      - name: Publish Release pre 2
+        shell: bash
+        run: |
+          touch "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          pwd
+          ls -l
+          cd ./build/output/bin/
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd
+          pwd
+          ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd "${{ env.WORK_DIR }}"
+
+      - name: Publish Release
+        uses: deep-soft/action-gh-release@v1
+        with:
+          draft: true
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            ${{ env.ASSET_REL }}
+
+  openbsd-amd64:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - { os: x86_64,  target: x86_64-openbsd-amd64     }
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run a script
+        uses: cross-platform-actions/action@v0.13.0
+        with:
+          operating_system: openbsd
+          architecture: x86-64
+          version: '7.2'
+          shell: bash
+          run: |
+            sudo pkg_add cmake
+            cd build
+            cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel -DNO_X11=1
+            cmake --build . -j 2
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.PRG_NAME }}-openbsd-amd64
+          path: build/output
+
+      - name: Publish Release pre 1
+        shell: bash
+        run: |
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
+          echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
+
+      - name: Publish Release pre 2
+        shell: bash
+        run: |
+          touch "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          pwd
+          ls -l
+          cd ./build/output/bin/
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd
+          pwd
+          ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd "${{ env.WORK_DIR }}"
+
+      - name: Publish Release
+        uses: deep-soft/action-gh-release@v1
+        with:
+          draft: true
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            ${{ env.ASSET_REL }}
+
+  openbsd-arm64:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - { os: aarch64, target: x86_64-openbsd-arm64     }
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run a script
+        uses: cross-platform-actions/action@v0.13.0
+        with:
+          operating_system: openbsd
+          architecture: arm64
+          version: '7.2'
+          shell: bash
+          run: |
+            sudo pkg_add cmake
+            cd build
+            cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel -DNO_X11=1
+            cmake --build . -j 2
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.PRG_NAME }}-openbsd-arm64
+          path: build/output
+
+      - name: Publish Release pre 1
+        shell: bash
+        run: |
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
+          echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
+
+      - name: Publish Release pre 2
+        shell: bash
+        run: |
+          touch "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          pwd
+          ls -l
+          cd ./build/output/bin/
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd
+          pwd
+          ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd "${{ env.WORK_DIR }}"
+
+      - name: Publish Release
+        uses: deep-soft/action-gh-release@v1
+        with:
+          draft: true
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            ${{ env.ASSET_REL }}
+
+  netbsd-amd64:
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - { os: x86_64,  target: x86_64-netbsd-amd64      }
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run a script
+        uses: cross-platform-actions/action@v0.13.0
+        with:
+          operating_system: netbsd
+          architecture: x86_64
+          version: '9.2'
+          shell: bash
+          run: |
+            sudo pkgin -y install cmake gcc12
+            cd build
+            cmake .. -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_C_COMPILER=/usr/pkg/gcc12/bin/gcc -DCMAKE_CXX_COMPILER=/usr/pkg/gcc12/bin/g++
+            cmake --build . -j 2
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.PRG_NAME }}-netbsd-amd64
+          path: build/output
+
+      - name: Publish Release pre 1
+        shell: bash
+        run: |
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.arch.gcc }}"
+          echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
+          echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
+
+      - name: Publish Release pre 2
+        shell: bash
+        run: |
+          touch "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          pwd
+          ls -l
+          cd ./build/output/bin/
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd
+          pwd
+          ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd "${{ env.WORK_DIR }}"
+
+      - name: Publish Release
+        uses: deep-soft/action-gh-release@v1
+        with:
+          draft: true
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            ${{ env.ASSET_REL }}
