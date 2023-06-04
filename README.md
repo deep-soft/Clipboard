@@ -21,7 +21,7 @@ Don't just take my word for it!
 <img src="documentation/readme-assets/Features.png" alt="Just let the features speak for themselves." height=25px>
 
 - Works with text, files, directories, binary data, your goat, anything,
-- An infinite number of clipboards with unlimited capacity AND endless history each,
+- An infinite number of clipboards with unlimited capacity AND history each,
 - Seamless integration with your [existing clipboards](https://github.com/Slackadays/Clipboard/wiki/GUI-Clipboard-Compat),
 - Support for your favorite languages like español, português, and Türkçe,
 - Gorgeous <img src="documentation/readme-assets/eyecandy.svg" height="16px" alt="eye candy"/> for your viewing pleasure,
@@ -129,7 +129,25 @@ scoop install clipboard
 sudo xbps-install -S clipboard
 ```
 
-You can also get the latest revision of the Clipboard Project [from GitHub Actions](https://nightly.link/Slackadays/Clipboard/workflows/build-clipboard/main) or the latest release [from GitHub Releases.](https://github.com/Slackadays/Clipboard/releases/latest)
+**GitHub Downloads**
+
+First, get the latest revision of the Clipboard Project [from GitHub Actions](https://nightly.link/Slackadays/Clipboard/workflows/build-clipboard/main) or the latest release [from GitHub Releases.](https://github.com/Slackadays/Clipboard/releases/latest)
+
+Then, unpack what you just downloaded to a nice place anywhere on your system.
+
+Finally, add CB to your PATH (so that you can run it anywhere) by doing one of following:
+
+```sh
+# For all platforms except Windows
+$ export PATH=$PATH:/where/you/unpacked/cb
+# Add this to your terminal startup file like .bashrc or the equivalent so that it works every time.
+# To get the current path (in case you don't know it), do the "pwd" command.
+
+# For Windows PowerShell
+> $Env:PATH += ";C:\where\you\unpacked\cb"
+# Add this to your PowerShell profile (which is located in $profile) so that this works every time.
+# To get the current path (in case you don't know it), do the "Get-Location" command.
+```
 
 <br>
 <br>
@@ -137,7 +155,7 @@ You can also get the latest revision of the Clipboard Project [from GitHub Actio
 ### <img src="documentation/readme-assets/InstallManually.png" alt="Install Manually" height=25px />
 You'll need CMake and C++20 support, and if you want X11 and/or Wayland compatibility, you'll also need libx11 and/or libwayland plus Wayland Protocols.
 
-Get the latest release instead of the latest commit by adding `--branch 0.7.1` right after `git clone...`.
+Get the latest release instead of the latest commit by adding `--branch 0.8.0` right after `git clone...`.
 
 Change the system installation prefix by adding `-DCMAKE_INSTALL_PREFIX=/custom/prefix` to `cmake ..`, or the library install location by adding `-DCMAKE_INSTALL_LIBDIR=/custom/dir`.
 ```bash
@@ -1085,7 +1103,7 @@ cb note "Latest files from website ABCXYZ"
 
 ### <img src="documentation/readme-assets/Flags.png" alt="Flags" height=25px />
 
-<details><summary> &ensp; <b><code>--all</code>, <code>-a</code></b> &emsp; Add this when clearing to clear all clipboards at once.</summary>
+<details><summary> &ensp; <b><code>--all</code>, <code>-a</code></b> &emsp; Add this when clearing to clear all clipboards at once, or when searching to search all clipboards.</summary>
 
 <br>
 
