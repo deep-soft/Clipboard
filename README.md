@@ -8,9 +8,7 @@
 
 <img src="documentation/readme-assets/ProductivityTools.png" alt="The fully-featured yet oh-so-easy-to-use clipboard manager for everyone." />
 
-The Clipboard Project <sub>(CB for short)</sub> is the super fast and lightweight, feature packed, and user friendly tool that lets you do more on the computer in _style_.
-
-This is the world's first (and currently only) real, complete clipboard manager for anybody who can mash keys on a keyboard. 
+The Clipboard Project <sub>(CB for short)</sub> is the fast and lightweight, feature packed, and user friendly tool that lets you do more on the computer in _style_.
 
 Imagine having a second brain that could remember anything, anytime, anywhere. That's almost what having CB is like for you.
 
@@ -100,6 +98,13 @@ apk add clipboard
 yay -S clipboard
 ```
 
+**Flatpak Flathub** (You can also get our nightly Flatpak builds under **GitHub Downloads**)
+```sh
+flatpak install app.getclipboard.Clipboard
+```
+
+<img width='240' alt='Download on Flathub' src='https://dl.flathub.org/assets/badges/flathub-badge-en.png' align="right"/>
+
 **Gentoo GURU and LiGurOS** (For Gentoo, enable the GURU repo first)
 ```sh
 emerge -av app-misc/clipboard
@@ -135,6 +140,8 @@ sudo xbps-install -S clipboard
 First, get the latest revision of the Clipboard Project [from GitHub Actions](https://nightly.link/Slackadays/Clipboard/workflows/build-clipboard/main) or the latest release [from GitHub Releases.](https://github.com/Slackadays/Clipboard/releases/latest)
 
 Then, unpack what you just downloaded to a nice place anywhere on your system.
+
+If you downloaded the Flatpak, then do `flatpak install what-you-downloaded.flatpak` and you're done. If not, then keep reading.
 
 Finally, add CB to your PATH (so that you can run it anywhere) by doing one of following:
 
