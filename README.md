@@ -8,9 +8,9 @@
 
 <img src="documentation/readme-assets/ProductivityTools.png" alt="The fully-featured yet oh-so-easy-to-use clipboard manager for everyone." />
 
-The Clipboard Project is a blazingly fast and lightweight, feature packed, and user friendly tool that lets you do more on the computer in _style_.
+The Clipboard Project is a fast and lightweight, feature packed, and user friendly tool that lets you do more on the computer in _style_. Seriously.
 
-It is one of the most advanced clipboard managers ever, and you'll be able to save time and effort easier than ever before.
+This is one of the most advanced clipboard managers ever. And with it, you'll be able to save time and effort easier than ever before.
 
 Don't just take my word for it!
 
@@ -33,7 +33,7 @@ Don't just take my word for it!
 
 <p align="center" id="dummy">
     <a href="https://discord.gg/J6asnc3pEG">
-        <img src="https://img.shields.io/badge/CHAT-DISCORD-blue?style=for-the-badge&logo=discord&labelColor=rgb(55,55,55)" alt="Discord Support">
+        <img src="https://img.shields.io/badge/CHAT-DISCORD-blue?style=for-the-badge&logo=discord&labelColor=rgb(55,55,55)&color=blueviolet" alt="Discord Support">
     </a>
     <a href="https://github.com/Slackadays/Clipboard/actions">
         <img src="https://img.shields.io/github/actions/workflow/status/Slackadays/Clipboard/build-clipboard.yml?branch=main&label=BUILDS&style=for-the-badge&logo=githubactions&labelColor=rgb(55,55,55)">
@@ -44,15 +44,17 @@ Don't just take my word for it!
         <img src="https://img.shields.io/codecov/c/github/slackadays/Clipboard/main?style=for-the-badge&label=COVERAGE&token=RO7KDOZ6Q2&logo=codecov&labelColor=rgb(55,55,55)">
     </a>
     <br>
+    <img src="https://forthebadge.com/images/badges/compatibility-club-penguin.svg">
+    <img src="https://forthebadge.com/images/badges/powered-by-black-magic.svg">
+    <img src="https://forthebadge.com/images/badges/ctrl-c-ctrl-v.svg">
+    <br>
     <a href="https://github.com/Slackadays/Clipboard/releases">
-        <img src="https://img.shields.io/github/v/release/slackadays/clipboard?label=latest%20release&style=for-the-badge&logo=github&labelColor=rgb(55,55,55)">
+        <img src="https://img.shields.io/github/v/release/slackadays/clipboard?label=latest%20release&style=for-the-badge&logo=github&labelColor=rgb(55,55,55)&color=brightgreen">
     </a>
     <a href="https://twitter.com/GetClipboard">
         <img src="https://img.shields.io/badge/FOLLOW-%40GETCLIPBOARD-blue?style=for-the-badge&labelColor=rgb(55,55,55)" alt="Follow us on Twitter">
     </a>
-    <a href="https://github.com/Slackadays/Clipboard/contributors">
-        <img src="https://img.shields.io/github/contributors-anon/slackadays/clipboard?style=for-the-badge&labelColor=rgb(55,55,55)&logo=github">
-    </a>
+    <img src="https://img.shields.io/github/downloads/Slackadays/Clipboard/total?style=for-the-badge&labelColor=rgb(55,55,55)&logo=github">
     <img src="https://img.shields.io/github/license/slackadays/clipboard?label=OPEN%20SOURCE&style=for-the-badge&labelColor=rgb(55,55,55)">
 </p>
 
