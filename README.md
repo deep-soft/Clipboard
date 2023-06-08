@@ -8,14 +8,11 @@
 
 <img src="documentation/readme-assets/ProductivityTools.png" alt="The fully-featured yet oh-so-easy-to-use clipboard manager for everyone." />
 
-The Clipboard Project <sub>(CB for short)</sub> is the fast and lightweight, feature packed, and user friendly tool that lets you do more on the computer in _style_.
+The Clipboard Project is a blazingly fast and lightweight, feature packed, and user friendly tool that lets you do more on the computer in _style_.
 
-Imagine having a second brain that could remember anything, anytime, anywhere. That's almost what having CB is like for you.
-
+It is one of the most advanced clipboard managers ever, and you'll be able to save time and effort easier than ever before.
 
 Don't just take my word for it!
-
-<br>
 
 <img src="documentation/readme-assets/Features.png" alt="Just let the features speak for themselves." height=25px>
 
@@ -23,6 +20,7 @@ Don't just take my word for it!
 - Infinite numbers of clipboards with unlimited capacity AND history each,
 - Seamless integration with your [existing clipboard systems](https://github.com/Slackadays/Clipboard/wiki/GUI-Clipboard-Compat),
 - Support for your favorite languages like español, português, and Türkçe,
+- Superb scriptability to automate your workflows in a cinch, 
 - Gorgeous <img src="documentation/readme-assets/eyecandy.svg" height="16px" alt="eye candy"/> for your viewing pleasure,
 - Documentation you'll actually want to read <sub>(all in this readme)</sub>
 - And oodles more! <sub>(just <i>look</i> at that documentation!)</sub>
@@ -101,6 +99,7 @@ yay -S clipboard
 **Flatpak Flathub** (You can also get our nightly Flatpak builds under **GitHub Downloads**)
 ```sh
 flatpak install app.getclipboard.Clipboard
+# After installing, do "alias cb='flatpak run app.getclipboard.Clipboard'" so that you can use CB easily.
 ```
 
 <img width='240' alt='Download on Flathub' src='https://dl.flathub.org/assets/badges/flathub-badge-en.svg' align="right"/>
@@ -143,7 +142,7 @@ Then, unpack what you just downloaded to a nice place anywhere on your system.
 
 If you downloaded the Flatpak, then do `flatpak install what-you-downloaded.flatpak` and you're done. If not, then keep reading.
 
-Finally, add CB to your PATH (so that you can run it anywhere) by doing one of following:
+Finally, add CB to your PATH (so that you can run it anywhere) by doing one of the following:
 
 ```sh
 # For all platforms except Windows
