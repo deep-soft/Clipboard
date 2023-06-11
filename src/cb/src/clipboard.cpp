@@ -159,7 +159,12 @@ std::vector<std::string> fileLines(const fs::path& path) {
     return lines;
 }
 
-std::string pipedInContent() {
+std::vector<std::string> regexSplit(const std::string& content, const std::regex& regex) {
+    std::sregex_token_iterator begin(content.begin(), content.end(), regex, -1), end; // -1: return the things that are not matched
+    return std::vector<std::string>(begin, end);
+}
+
+std::string pipedInContent(bool count) {
     std::string content;
 #if !defined(_WIN32) && !defined(_WIN64)
     int len = -1;
@@ -169,7 +174,7 @@ std::string pipedInContent() {
     while (len != 0) {
         len = read(stdinFd, buffer.data(), bufferSize);
         content.append(buffer.data(), len);
-        successes.bytes += len;
+        if (count) successes.bytes += len;
     }
 #elif defined(_WIN32) || defined(_WIN64)
     HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
@@ -181,7 +186,7 @@ std::string pipedInContent() {
         bSuccess = ReadFile(hStdin, chBuf, 1024, &dwRead, NULL);
         if (!bSuccess || dwRead == 0) break;
         content.append(chBuf, dwRead);
-        successes.bytes += dwRead;
+        if (count) successes.bytes += dwRead;
     }
 #endif
     return content;
@@ -434,14 +439,11 @@ IOType getIOType() {
     using enum IOType;
     if (action_is_one_of(Cut, Copy, Add)) {
         if (copying.items.size() == 1 && !fs::exists(copying.items.at(0))) return Text;
-        if (!is_tty.in) return Pipe;
+        if (!is_tty.in && copying.items.empty()) return Pipe;
     } else if (action_is_one_of(Paste, Show, Clear, Edit, Status, Info, History)) {
         if (!is_tty.out) return Pipe;
         return Text;
-    } else if (action == Remove) {
-        if (!is_tty.in) return Pipe;
-        return Text;
-    } else if (action_is_one_of(Note, Ignore, Swap, Load, Import, Export, Search)) {
+    } else if (action_is_one_of(Remove, Note, Ignore, Swap, Load, Import, Export, Search)) {
         if (!is_tty.in && copying.items.empty()) return Pipe;
         return Text;
     }
