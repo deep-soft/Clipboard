@@ -78,10 +78,6 @@ Don't just take my word for it!
         <img src="https://img.shields.io/codecov/c/github/slackadays/Clipboard/main?style=for-the-badge&label=COVERAGE&token=RO7KDOZ6Q2&logo=codecov&labelColor=rgb(55,55,55)">
     </a>
     <br>
-    <img src="https://forthebadge.com/images/badges/compatibility-club-penguin.svg">
-    <img src="https://forthebadge.com/images/badges/powered-by-black-magic.svg">
-    <img src="https://forthebadge.com/images/badges/ctrl-c-ctrl-v.svg">
-    <br>
     <a href="https://github.com/Slackadays/Clipboard/releases">
         <img src="https://img.shields.io/github/v/release/slackadays/clipboard?label=latest%20release&style=for-the-badge&logo=github&labelColor=rgb(55,55,55)&color=brightgreen">
     </a>
@@ -127,10 +123,14 @@ curl -sSL https://github.com/Slackadays/Clipboard/raw/main/install.sh | sh
 apk add clipboard
 ```
 
+<br>
+
 **AUR** (Use your favorite AUR helper such as `yay`. You can also get `clipboard-bin` and `clipboard-git`)
 ```sh
 yay -S clipboard
 ```
+
+<br>
 
 **Flatpak Flathub** (You can also get our nightly Flatpak builds under **GitHub Downloads**)
 ```sh
@@ -141,35 +141,49 @@ flatpak install app.getclipboard.Clipboard
 
 <img width='240' alt='Download on Flathub' src='https://dl.flathub.org/assets/badges/flathub-badge-en.svg' align="right"/>
 
+<br>
+
 **Gentoo GURU and LiGurOS** (For Gentoo, enable the GURU repo first)
 ```sh
 emerge -av app-misc/clipboard
 ```
+
+<br>
 
 **Homebrew**
 ```sh
 brew install clipboard
 ```
 
+<br>
+
 **Nix**
 ```sh
 nix-env -iA nixpkgs.clipboard-jh
 ```
+
+<br>
 
 **Pacstall**
 ```sh
 pacstall -I clipboard-bin
 ```
 
+<br>
+
 **Scoop**
 ```powershell
 scoop install clipboard
 ```
 
+<br>
+
 **Void Linux**
 ```sh
 sudo xbps-install -S clipboard
 ```
+
+<br>
 
 **GitHub Downloads**
 
@@ -197,7 +211,7 @@ $ export PATH=$PATH:/where/you/unpacked/cb
 <br>
 
 ### <img src="documentation/readme-assets/InstallManually.png" alt="Install Manually" height=25px />
-You'll need CMake and C++20 support, and if you want X11 and/or Wayland compatibility, you'll also need libx11 and/or libwayland plus Wayland Protocols.
+You'll need CMake and C++20 support, and if you want X11, Wayland, or ALSA support, you'll also need libx11, libwayland plus Wayland Protocols, or libasound respectively.
 
 Get the latest release instead of the latest commit by adding `--branch 0.8.0` right after `git clone...`.
 
@@ -1088,9 +1102,12 @@ Yank anything sitting in your terminal without ever touching the mouse.
 $ env | yank -d = -- cb
 ```
     
-Choose a text clipboard entry to instantly copy to the main clipboard using dmenu.
+Instantly copy to the main clipboard using your favorite dmenu tool.
 ```sh
-cb st | jq -r '.[]' | dmenu | cb
+$ cb cp "$(cb st | jq -r '.[] | if type=="array" then .[].path else if type=="object" then .path else . end end' | dmenu)"
+# For copying the latest entry from any of your clipboards
+$ cb cp "$(cb hs | jq -r '.[].content | if type=="array" then .[].path else if type=="object" then .path else . end end' | dmenu)"
+# For copying any entry from a specific clipboard
 ```
 
 Need to share or pore over log files? Copy them in one step!

@@ -5,6 +5,7 @@ add_executable(cb
   src/themes.cpp
   src/indicator.cpp
   src/externalclipboards.cpp
+  src/alsaandfallback.cpp
   src/actions/add.cpp
   src/actions/clear.cpp
   src/actions/copy.cpp
@@ -23,6 +24,7 @@ add_executable(cb
   src/actions/show.cpp
   src/actions/status.cpp
   src/actions/swap.cpp
+  src/actions/menu.cpp
 )
 
 enable_lto(cb)
@@ -75,6 +77,10 @@ elseif(X11WL)
   )
   target_link_options(cb PRIVATE -z origin) # set the rpath to $ORIGIN
   target_link_libraries(cb ${CMAKE_DL_LIBS})
+endif()
+
+if(ALSA_FOUND)
+  target_link_libraries(cb asound)
 endif()
 
 set(CMAKE_THREAD_PREFER_PTHREAD True)
