@@ -1,4 +1,4 @@
-# 2023-06-16 18:10
+# 2023-06-16 18:50
 name: act - Clipboard Builds - release
 
 on:
@@ -116,8 +116,7 @@ jobs:
         with:
           name: clipboard-flatpak-amd64
           path: |
-            build/clipboard-flatpak-amd64.flatpak
-            build/clipboard-flatpak-READ_THIS_AFTER_INSTALLING.txt
+            clipboard-flatpak-amd64.flatpak
 
       - name: Publish Release
         uses: deep-soft/action-gh-release@v1
@@ -125,8 +124,7 @@ jobs:
           draft: true
           tag_name: ${{ env.TAG_NAME }}
           files: |
-            build/clipboard-flatpak-amd64.flatpak
-            build/clipboard-flatpak-READ_THIS_AFTER_INSTALLING.txt
+            clipboard-flatpak-amd64.flatpak
 
   macos-arm64-amd64:
     strategy:
