@@ -10,11 +10,11 @@
 
 The Clipboard Project is a fast and lightweight, feature packed, and user friendly tool that lets you do more on the computer in _style_. Seriously.
 
-Say hello to one of the most advanced clipboard managers ever. Save time and effort easier than ever before.
+Say hello to one of the most cutting-edge clipboard managers ever. Save time and effort easier than ever before.
 
 Don't just take my word for it!
 
-<img src="documentation/readme-assets/Features.png" alt="Just let the features speak for themselves." height=25px>
+<img src="documentation/readme-assets/Features.png" alt="Just let the features speak for themselves." height=35px>
 
 - Copy and paste text, files, directories, binary data, your goat, _anything_
 - Infinite numbers of clipboards with unlimited capacity AND history each,
@@ -60,6 +60,18 @@ Don't just take my word for it!
 <i>Thank you for this app, <b>so simple yet effective!</b> Hats off 🎩 👌</i>
 
 \- GlassGruber on GitHub.com
+
+<br>
+
+<i>BTW, really LOVE this project. Its [sic] <b>so unbelievable it isn't already in Linux.</b></i>
+
+\- AtomicRobotMan0101 on GitHub.com
+
+<br>
+
+<i>...Thank you again for <b>this great application!</b></i>
+
+\- kohane27 on GitHub.com
 
 <br>
 
