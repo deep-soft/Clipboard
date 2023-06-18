@@ -116,7 +116,7 @@ UINT old_code_page;
 #endif
 
 TerminalSize thisTerminalSize() {
-    static TerminalSize temp;
+    static TerminalSize temp(0, 0);
     if (temp.rows != 0 && temp.columns != 0) return temp;
 #if defined(_WIN32) || defined(_WIN64)
     CONSOLE_SCREEN_BUFFER_INFO csbi;
@@ -129,6 +129,74 @@ TerminalSize thisTerminalSize() {
 #endif
     if (temp.rows >= 5 && temp.columns >= 10) return temp;
     return TerminalSize(80, 24);
+}
+
+std::string formatMessage(const std::string_view& str, bool colorful) {
+    std::string temp(str); // a string to do scratch work on
+    auto replaceThis = [&](const std::string_view& str, const std::string_view& with) {
+        for (size_t i = 0; (i = temp.find(str, i)) != std::string::npos; i += with.length())
+            temp.replace(i, str.length(), with);
+    };
+    for (const auto& key : colors) // iterate over all the possible colors to replace
+        replaceThis(key.first, colorful ? key.second : "");
+    if (no_emoji) {
+        replaceThis("✅", "✓");
+        replaceThis("❌", "✗");
+        replaceThis("💡", "•");
+        replaceThis("🔷", "•");
+    }
+    return temp;
+}
+
+std::string JSONescape(const std::string_view& input) {
+    std::string temp(input);
+
+    for (size_t i = 0; i < temp.size(); i++) {
+        switch (temp[i]) {
+        case '"':
+            temp.replace(i, 1, "\\\"");
+            i++;
+            break;
+        case '\\':
+            temp.replace(i, 1, "\\\\");
+            i++;
+            break;
+        case '/':
+            temp.replace(i, 1, "\\/");
+            i++;
+            break;
+        case '\b':
+            temp.replace(i, 1, "\\b");
+            i++;
+            break;
+        case '\f':
+            temp.replace(i, 1, "\\f");
+            i++;
+            break;
+        case '\n':
+            temp.replace(i, 1, "\\n");
+            i++;
+            break;
+        case '\r':
+            temp.replace(i, 1, "\\r");
+            i++;
+            break;
+        case '\t':
+            temp.replace(i, 1, "\\t");
+            i++;
+            break;
+        default:
+            if (temp[i] < 32) {
+                std::stringstream ss;
+                ss << "\\u" << std::hex << std::setw(4) << std::setfill('0') << (int)temp[i];
+                temp.replace(i, 1, ss.str());
+                i += 5;
+            }
+            break;
+        }
+    }
+
+    return temp;
 }
 
 std::string fileContents(const fs::path& path) {
@@ -301,6 +369,7 @@ void setupHandlers() {
     });
 
     signal(SIGINT, [](int) {
+        fprintf(stderr, "%s", formatMessage("[blank]").data());
         if (!stopIndicator(false)) {
             // Indicator thread is not currently running. TODO: Write an unbuffered newline, and maybe a cancelation
             // message, directly to standard error. Note: There is no standard C++ interface for this, so this requires
@@ -483,14 +552,27 @@ void setFlags() {
             clipboard_entry = std::stoul(flag);
         } catch (...) {}
     if (flagIsPresent<bool>("-h") || flagIsPresent<bool>("help", "--")) {
-        auto tempActions = actions;
-        std::sort(tempActions.begin(), tempActions.end());
+        auto longestAction = std::max_element(actions.begin(), actions.end(), [](const auto& a, const auto& b) { return a.size() < b.size(); })->size();
+        auto longestActionShortcut = std::max_element(action_shortcuts.begin(), action_shortcuts.end(), [](const auto& a, const auto& b) { return a.size() < b.size(); })->size();
+        auto generatedSpaces = [](const int& length) {
+            std::string spaces;
+            for (int i = 0; i < length; i++)
+                spaces += " ";
+            return spaces;
+        };
         std::string actionsList;
-        for (int i = 0; i < tempActions.size(); i++) {
-            actionsList.append(tempActions.at(i));
-            if (i != tempActions.size() - 1) actionsList.append(", ");
+        for (int i = 0; i < actions.size(); i++) {
+            actionsList.append("[progress]│ ")
+                    .append(generatedSpaces(longestAction - actions.at(i).size()))
+                    .append(actions.at(i))
+                    .append(", ")
+                    .append(generatedSpaces(longestActionShortcut - action_shortcuts[static_cast<Action>(i)].size()))
+                    .append(action_shortcuts[static_cast<Action>(i)])
+                    .append("│ [help]")
+                    .append(action_descriptions[static_cast<Action>(i)])
+                    .append("[blank]\n");
         }
-        printf(help_message().data(), constants.clipboard_version.data(), constants.clipboard_commit.data(), actionsList.data());
+        printf(help_message().data(), constants.clipboard_version.data(), constants.clipboard_commit.data(), formatMessage(actionsList).data());
         exit(EXIT_SUCCESS);
     }
     if (auto pos = std::find_if(arguments.begin(), arguments.end(), [](const auto& entry) { return entry == "--"; }); pos != arguments.end()) arguments.erase(pos);
