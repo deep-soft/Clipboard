@@ -8,11 +8,15 @@
 
 <img src="documentation/readme-assets/ProductivityTools.png" alt="The fully-featured yet oh-so-easy-to-use clipboard manager for everyone." />
 
+<br>
+
 The Clipboard Project is a fast and lightweight, feature packed, and user friendly tool that lets you do more on the computer in _style_. Seriously.
 
 Say hello to one of the most cutting-edge clipboard managers ever. Save time and effort easier than ever before.
 
 Don't just take my word for it!
+
+<br>
 
 <img src="documentation/readme-assets/Features.png" alt="Just let the features speak for themselves." height=35px>
 
@@ -20,7 +24,7 @@ Don't just take my word for it!
 - Infinite numbers of clipboards with unlimited capacity AND history each,
 - Seamless integration with your [existing clipboard systems](https://github.com/Slackadays/Clipboard/wiki/GUI-Clipboard-Compat),
 - Support for your favorite languages like español, português, and Türkçe,
-- Superb scriptability to automate your workflows in a cinch, 
+- A superbly scriptable API to automate your workflows in a cinch, 
 - Gorgeous <img src="documentation/readme-assets/eyecandy.svg" height="16px" alt="eye candy"/> and ear candy for your viewing and listening pleasure,
 - Documentation you'll actually want to read <sub>(all in this readme)</sub>
 - And oodles more!
@@ -203,15 +207,19 @@ First, get the latest revision of the Clipboard Project [from GitHub Actions](ht
 
 Then, unpack what you just downloaded to a nice place anywhere on your system.
 
-If you downloaded the Flatpak, then do `flatpak install what-you-downloaded.flatpak` and you're done. If not, then keep reading.
+If you downloaded the Flatpak, now do `flatpak install what-you-downloaded.flatpak`.
 
 Finally, add CB to your PATH (so that you can run it anywhere) by doing one of the following:
 
 ```sh
-# For all platforms except Windows
+# For all platforms except Windows and Flatpak
 $ export PATH=$PATH:/where/you/unpacked/cb
 # Add this to your terminal startup file like .bashrc or the equivalent so that it works every time.
 # To get the current path (in case you don't know it), do the "pwd" command.
+
+# For Flatpak
+$ alias cb='flatpak run app.getclipboard.Clipboard'
+# Add this to your terminal startup file like .bashrc or the equivalent so that it works every time.
 
 # For Windows PowerShell
 > $Env:PATH += ";C:\where\you\unpacked\cb"
