@@ -1,4 +1,4 @@
-/*  The Clipboard Project - Cut, copy, and paste anything, anywhere, all from the terminal.
+/*  The Clipboard Project - Cut, copy, and paste anything, anytime, anywhere, all from the terminal.
     Copyright (C) 2023 Jackson Huff and other contributors on GitHub.com
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ void paste() {
         auto target = [&] {
             if (path.holdsRawDataInCurrentEntry())
                 return (fs::current_path() / ("clipboard" + clipboard_name + "-" + std::to_string(clipboard_entry)))
-                        .replace_extension(MIMETypeToExtension(inferMIMEType(fileContents(path.data.raw)).value_or("text/plain")).value_or(".txt"));
+                        .replace_extension(inferFileExtension(fileContents(path.data.raw)).value_or(".txt"));
             else
                 return fs::current_path() / entry.path().filename();
         }();

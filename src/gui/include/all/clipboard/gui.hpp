@@ -1,4 +1,4 @@
-/*  The Clipboard Project - Cut, copy, and paste anything, anywhere, all from the terminal.
+/*  The Clipboard Project - Cut, copy, and paste anything, anytime, anywhere, all from the terminal.
     Copyright (C) 2023 Jackson Huff and other contributors on GitHub.com
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -80,4 +80,4 @@ struct WriteGuiContext {
 };
 
 extern std::optional<std::string_view> inferMIMEType(const std::string_view& content);
-extern std::optional<std::string_view> MIMETypeToExtension(const std::string_view& type);
+extern std::optional<std::string_view> inferFileExtension(const std::string_view& content);
