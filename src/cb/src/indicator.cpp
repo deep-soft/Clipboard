@@ -70,15 +70,11 @@ void setupIndicator() {
     auto display_progress = [&](const auto& formattedNum, const std::string_view& actionText = doing_action[action]) {
         std::string progressBar;
         if (step < 40) {
-            for (int i = 0; i < step; i++)
-                progressBar += "█";
-            for (int i = 0; i < 39 - step; i++)
-                progressBar += "▒";
+            progressBar += repeatString("█", step);
+            progressBar += repeatString("▒", 39 - step);
         } else {
-            for (int i = 0; i < step - 40; i++)
-                progressBar += "▒";
-            for (int i = 0; i < 39 - (step - 40); i++)
-                progressBar += "█";
+            progressBar += repeatString("▒", step - 40);
+            progressBar += repeatString("█", 39 - (step - 40));
         }
         std::string formattedSeconds = std::to_string(std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - start).count()) + "s";
         fprintf(stderr, working_message().data(), actionText.data(), formattedNum, formattedSeconds.data(), progressBar.data());
@@ -124,11 +120,13 @@ void setupIndicator() {
 
     if (!hasFocus && clipboard_state != ClipboardState::Error && !getenv("CLIPBOARD_NOAUDIO")) {
         std::valarray<short> samples(success_pcm_len / 2);
-        std::generate(std::begin(samples), std::end(samples), [i = 0]() mutable { return static_cast<short>(success_pcm[i++] | (success_pcm[i++] << 8)); });
+        for (size_t i = 0; i < success_pcm_len; i += 2)
+            samples[i / 2] = static_cast<short>(success_pcm[i] | (success_pcm[i + 1] << 8));
         if (!playAsyncSoundEffect(samples)) printf("\007");
     } else if (clipboard_state == ClipboardState::Error && !getenv("CLIPBOARD_NOAUDIO")) {
         std::valarray<short> samples(error_pcm_len / 2);
-        std::generate(std::begin(samples), std::end(samples), [i = 0]() mutable { return static_cast<short>(error_pcm[i++] | (error_pcm[i++] << 8)); });
+        for (size_t i = 0; i < error_pcm_len; i += 2)
+            samples[i / 2] = static_cast<short>(error_pcm[i] | (error_pcm[i + 1] << 8));
         if (!playAsyncSoundEffect(samples)) printf("\007");
     }
 

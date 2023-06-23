@@ -20,7 +20,7 @@ cd "$BASEDIR" || exit 1
 
 clear_tempdirs
 
-run_tests() {
+run_all_tests() {
     sh export.sh
     sh history.sh
     sh ignore.sh
@@ -56,6 +56,6 @@ run_tests() {
     sh wayland.sh
 }
 
-run_tests
+run_all_tests
 
 echo "🐢 All tests passed!"

@@ -21,8 +21,8 @@ void clear() {
         if (!userIsARobot()) {
             stopIndicator();
             fprintf(stderr,
-                    formatMessage("[progress]⬤ Are you sure you want to clear all clipboards?[blank] [help]This will remove everything in locations [bold]%s[blank][help] and "
-                                  "[bold]%s[blank][help]. [bold][y(es)/n(o)] ")
+                    formatMessage("[progress]⬤ Are you sure you want to clear all clipboards?[blank] [help]This will remove everything in locations [bold]%s[nobold] and "
+                                  "[bold]%s[nobold]. [bold][y(es)/n(o)] ")
                             .data(),
                     global_path.temporary.string().data(),
                     global_path.persistent.string().data());
@@ -42,14 +42,14 @@ void clear() {
                 }
             }
             fprintf(stderr, "%s", formatMessage("[blank]").data());
-            fprintf(stderr, formatMessage("[success]✅ Cleared %d clipboard%s[blank]\n").data(), clipboards_cleared, clipboards_cleared == 1 ? "" : "s");
+            fprintf(stderr, formatMessage("[success][inverse]✔[noinverse] Cleared %d clipboard%s[blank]\n").data(), clipboards_cleared, clipboards_cleared == 1 ? "" : "s");
         }
     } else {
         fs::remove(path.metadata.originals);
         fs::remove(path.metadata.notes);
         fs::remove(path.metadata.ignore);
         stopIndicator();
-        fprintf(stderr, "%s", formatMessage("[success]✅ Cleared clipboard[blank]\n").data());
+        fprintf(stderr, "%s", formatMessage("[success][inverse]✔[noinverse] Cleared clipboard[blank]\n").data());
     }
 }
 
