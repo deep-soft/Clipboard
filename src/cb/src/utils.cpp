@@ -530,7 +530,8 @@ Action getAction() {
     using enum Action;
     if (arguments.size() >= 1) {
         for (const auto& entry : {Cut, Copy, Paste, Clear, Show, Edit, Add, Remove, Note, Swap, Status, Info, Load, Import, Export, History, Ignore, Search}) {
-            if (flagIsPresent<bool>(actions[entry], "--") || flagIsPresent<bool>(action_shortcuts[entry], "--")) {
+            if (flagIsPresent<bool>(actions[entry], "--") || flagIsPresent<bool>(action_shortcuts[entry], "--") || flagIsPresent<bool>(actions.original(entry), "--")
+                || flagIsPresent<bool>(action_shortcuts.original(entry), "--")) {
                 return entry;
             }
         }
@@ -786,7 +787,7 @@ void showFailures() {
     available.rows -= 3;
     printf(copying.failedItems.size() > 1 ? clipboard_failed_many_message().data() : clipboard_failed_one_message().data(), actions[action].data());
     for (size_t i = 0; i < std::min(available.rows, copying.failedItems.size()); i++) {
-        printf(formatMessage("[error][inverse]✘[noinverse] [bold]%s[blank][error]: %s[blank]\n").data(), copying.failedItems.at(i).first.data(), copying.failedItems.at(i).second.message().data());
+        printf(formatMessage("[error][inverse] ✘ [noinverse] [bold]%s[blank][error]: %s[blank]\n").data(), copying.failedItems.at(i).first.data(), copying.failedItems.at(i).second.message().data());
         if (i == available.rows - 1 && copying.failedItems.size() > available.rows) printf(and_more_fails_message().data(), int(copying.failedItems.size() - available.rows));
     }
     printf("%s", fix_problem_message().data());

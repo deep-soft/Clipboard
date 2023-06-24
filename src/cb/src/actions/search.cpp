@@ -21,7 +21,7 @@ void search() {
         error_exit(
                 "%s",
                 formatMessage(
-                        "[error][inverse]✘[noinverse] You need to enter something to search for. [help]⬤ Try entering a search term after the action, like [bold]cb search Foobar[nobold].[blank]\n"
+                        "[error][inverse] ✘ [noinverse] You need to enter something to search for. [help]⬤ Try entering a search term after the action, like [bold]cb search Foobar[nobold].[blank]\n"
                 )
         );
 
@@ -74,7 +74,7 @@ void search() {
             }
         } catch (const std::regex_error& e) {
             error_exit(
-                    formatMessage("[error][inverse]✘[noinverse] CB couldn't process your query as regex. (Specific error: %s) [help]⬤ Try entering a valid regex instead, like [bold]cb search "
+                    formatMessage("[error][inverse] ✘ [noinverse] CB couldn't process your query as regex. (Specific error: %s) [help]⬤ Try entering a valid regex instead, like [bold]cb search "
                                   "\"Foobar.*\"[nobold].[blank]\n"),
                     std::string(e.what())
             );
@@ -90,7 +90,7 @@ void search() {
     };
 
     for (auto& clipboard : targets) {
-        for (const auto& entry : clipboard.entryIndex) {
+        for (auto entry = 0; entry < clipboard.entryIndex.size(); entry++) {
             auto adjustScoreByEntryPosition = [&](Result& result) {
                 float multiplier = 1.0f - (static_cast<float>(entry) / (20.0f * static_cast<float>(clipboard.entryIndex.size())));
                 float newScore = static_cast<float>(result.score) * multiplier;
@@ -124,7 +124,7 @@ void search() {
     }
 
     if (results.empty())
-        error_exit("%s", formatMessage("[error][inverse]✘[noinverse] CB couldn't find anything matching your query.[blank] [help]⬤ Try searching for something else instead.[blank]\n"));
+        error_exit("%s", formatMessage("[error][inverse] ✘ [noinverse] CB couldn't find anything matching your query.[blank] [help]⬤ Try searching for something else instead.[blank]\n"));
 
     std::sort(results.begin(), results.end(), [](const Result& one, const Result& two) { return one.hash < two.hash; });
     results.erase(std::unique(results.begin(), results.end(), [](const Result& one, const Result& two) { return one.hash == two.hash; }), results.end());
@@ -160,7 +160,7 @@ void search() {
                 result.entry);
         std::string preview = result.preview;
         std::erase(preview, '\n');
-        int widthRemaining = available.columns - (longestClipboardLength + longestEntryLength);
+        auto widthRemaining = available.columns - (longestClipboardLength + longestEntryLength);
         if (preview.length() > widthRemaining) {
             preview = preview.substr(0, widthRemaining - 3);
             preview += "...";
