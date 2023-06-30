@@ -83,11 +83,19 @@ elseif(X11WL)
   target_link_options(cb PRIVATE -z origin) # set the rpath to $ORIGIN
   
   target_link_libraries(cb ${CMAKE_DL_LIBS})
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -rdynamic") # needed for libs to access binary symbols
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic") # needed for libs to access binary symbols
+  if(NOT CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
+    target_link_libraries(cb rt)
+  endif()
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD" OR CMAKE_SYSTEM_NAME STREQUAL "OpenBSD" OR CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
   target_sources(cb PRIVATE src/platforms/bsd.cpp)
+endif()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  # link liburing
+  #target_link_libraries(cb uring)
 endif()
 
 if(ALSA_FOUND)

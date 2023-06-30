@@ -22,6 +22,7 @@ Don't just take my word for it!
 
 - Copy and paste text, files, directories, binary data, your goat, _anything_
 - Infinite numbers of clipboards with unlimited capacity AND history each,
+- Seriously kickass performance 🥾 because I'm sick of slow software,
 - Seamless integration with your [existing clipboard systems](https://github.com/Slackadays/Clipboard/wiki/GUI-Clipboard-Compat),
 - Support for your favorite languages like español, português, and Türkçe,
 - A superbly scriptable API to automate your workflows in a cinch, 
@@ -248,7 +249,7 @@ $ alias cb='snap run clipboard'
 <br>
 
 ### <img src="documentation/readme-assets/InstallManually.png" alt="Install Manually" height=25px />
-You'll need CMake and C++20 support, and if you want X11, Wayland, or ALSA support, you'll also need libx11, libwayland plus Wayland Protocols, or libasound respectively.
+You'll need CMake and C++20 support, and if you want X11 or Wayland support, you'll also need libx11 or libwayland plus Wayland Protocols respectively. If you're on Linux, you'll need ALSA.
 
 Get the latest release instead of the latest commit by adding `--branch 0.8.0` right after `git clone...`.
 

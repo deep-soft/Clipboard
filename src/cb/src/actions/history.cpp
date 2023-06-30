@@ -13,6 +13,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.*/
 #include "../clipboard.hpp"
+#include <latch>
 
 #if defined(_WIN32) || defined(_WIN64)
 #include <fcntl.h>
@@ -20,15 +21,20 @@
 #include <io.h>
 #endif
 
-#if defined(__linux__)
-#include <linux/io_uring.h>
-#endif
+/*#if defined(__linux__)
+#include <liburing.h>
+int SQEsSubmitted = 0;
+#endif*/
 
 #if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
-#include <aio.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#endif
+
+#if (defined(__linux__) || defined(__unix__) || defined(__APPLE__) || defined(__posix__)) && !defined(__OpenBSD__)
+#define USE_AIO 1
+#include <aio.h>
 #endif
 
 namespace PerformAction {
@@ -51,7 +57,7 @@ void moveHistory() {
         successful_entries++;
     }
     stopIndicator();
-    fprintf(stderr, formatMessage("[success][inverse] ✔ [noinverse] Queued up [bold]%lu[blank][success] entries[blank]\n").data(), successful_entries);
+    fprintf(stderr, formatColors("[success][inverse] ✔ [noinverse] Queued up [bold]%lu[blank][success] entries[blank]\n").data(), successful_entries);
     if (clipboard_name == constants.default_clipboard_name) updateExternalClipboards(true);
 }
 
@@ -62,92 +68,133 @@ void history() {
     }
     stopIndicator();
     auto available = thisTerminalSize();
-    fprintf(stderr, "%s", formatMessage("[info]┏━━[inverse] ").data());
+    fprintf(stderr, "%s", formatColors("[info]┏━━[inverse] ").data());
     Message clipboard_history_message = "[bold]Entry history for clipboard [help] %s[nobold]";
     fprintf(stderr, clipboard_history_message().data(), clipboard_name.data());
-    fprintf(stderr, "%s", formatMessage(" [noinverse][info]━").data());
+    fprintf(stderr, "%s", formatColors(" [noinverse][info]━").data());
     auto usedSpace = (columnLength(clipboard_history_message) - 2) + clipboard_name.length() + 7;
     if (usedSpace > available.columns) available.columns = usedSpace;
     int columns = available.columns - usedSpace;
-    fprintf(stderr, "%s%s", repeatString("━", columns).data(), formatMessage("┓[blank]").data());
+    fprintf(stderr, "%s%s", repeatString("━", columns).data(), formatColors("┓[blank]").data());
 
-    std::vector<std::string> dates;
-    dates.reserve(path.entryIndex.size());
+    std::vector<std::string> dates(path.entryIndex.size());
 
-    size_t longestDateLength = 0;
+    std::atomic<size_t> atomicLongestDateLength = 0;
 
     auto now = std::chrono::system_clock::now();
 
-    struct stat dateInfo;
-    std::string agoMessage;
-    agoMessage.reserve(16);
+    auto totalThreads = suitableThreadAmount();
+    if (path.entryIndex.size() < totalThreads) totalThreads = path.entryIndex.size();
 
-    for (auto entry = 0; entry < path.entryIndex.size(); entry++) {
+    auto entriesPerThread = path.entryIndex.size() / totalThreads;
+
+    std::latch dateLatch(totalThreads);
+    std::vector<std::thread> threads(totalThreads);
+
+    auto dateWorker = [&](const unsigned long& start, const unsigned long& end) {
+        struct stat dateInfo;
+        std::string agoMessage;
+        agoMessage.reserve(16);
+
+        for (auto entry = start; entry < end; entry++) {
 #if defined(__linux__) || defined(__APPLE__) || defined(__unix__)
-        stat(path.entryPathFor(entry).string().data(), &dateInfo);
-        auto timeSince = now - std::chrono::system_clock::from_time_t(dateInfo.st_mtime);
-        // format time like 1y 2d 3h 4m 5s
-        auto years = std::chrono::duration_cast<std::chrono::years>(timeSince);
-        auto days = std::chrono::duration_cast<std::chrono::days>(timeSince - years);
-        auto hours = std::chrono::duration_cast<std::chrono::hours>(timeSince - days);
-        auto minutes = std::chrono::duration_cast<std::chrono::minutes>(timeSince - days - hours);
-        auto seconds = std::chrono::duration_cast<std::chrono::seconds>(timeSince - days - hours - minutes);
-        if (years.count() > 0) agoMessage += std::to_string(years.count()) + "y ";
-        if (days.count() > 0) agoMessage += std::to_string(days.count()) + "d ";
-        if (hours.count() > 0) agoMessage += std::to_string(hours.count()) + "h ";
-        if (minutes.count() > 0) agoMessage += std::to_string(minutes.count()) + "m ";
-        agoMessage += std::to_string(seconds.count()) + "s";
-        dates.emplace_back(agoMessage);
+            stat(path.entryPathFor(entry).string().data(), &dateInfo);
+            auto timeSince = now - std::chrono::system_clock::from_time_t(dateInfo.st_mtime);
+            // format time like 1y 2d 3h 4m 5s
+            auto years = std::chrono::duration_cast<std::chrono::years>(timeSince);
+            auto days = std::chrono::duration_cast<std::chrono::days>(timeSince - years);
+            auto hours = std::chrono::duration_cast<std::chrono::hours>(timeSince - days);
+            auto minutes = std::chrono::duration_cast<std::chrono::minutes>(timeSince - days - hours);
+            auto seconds = std::chrono::duration_cast<std::chrono::seconds>(timeSince - days - hours - minutes);
+            if (years.count() > 0) agoMessage += std::to_string(years.count()) + "y ";
+            if (days.count() > 0) agoMessage += std::to_string(days.count()) + "d ";
+            if (hours.count() > 0) agoMessage += std::to_string(hours.count()) + "h ";
+            if (minutes.count() > 0) agoMessage += std::to_string(minutes.count()) + "m ";
+            agoMessage += std::to_string(seconds.count()) + "s";
+            dates[entry] = agoMessage;
 
-        if (agoMessage.length() > longestDateLength) longestDateLength = agoMessage.length();
-        agoMessage.clear();
+            if (agoMessage.length() > atomicLongestDateLength.load(std::memory_order_relaxed)) atomicLongestDateLength.store(agoMessage.length(), std::memory_order_relaxed);
+            agoMessage.clear();
 #else
-        dates.push_back("n/a");
-        longestDateLength = 3;
+            dates[entry] = "n/a";
+            atomicLongestDateLength.store(3, std::memory_order_relaxed);
 #endif
+        }
+        dateLatch.count_down();
+    };
+
+    for (size_t thread = 0; thread < totalThreads; thread++) {
+        auto start = thread * entriesPerThread;
+        auto end = start + entriesPerThread;
+        if (thread == totalThreads - 1) end = path.entryIndex.size();
+        threads[thread] = std::thread(dateWorker, start, end);
     }
 
-/*#if defined(__linux__)                       \
-    struct io_uring_params params;             \
-    memset(&params, 0, sizeof(params));        \
-    int ring_fd = io_uring_setup(16, &params); \
-                                               \
-                                               \
-#el*/ #if defined (__unix__) || defined(__APPLE__) || defined(__linux__)
-    int flags = fcntl(STDERR_FILENO, F_GETFL, 0);
-    fcntl(STDERR_FILENO, F_SETFL, flags | O_APPEND);
-    struct aiocb aio;
+    dateLatch.wait();
+
+    for (auto& thread : threads)
+        thread.join();
+
+    // std::cout << "processing dates took " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - now).count() << "ms" << std::endl;
+    // exit(0);
+
+    size_t longestDateLength = atomicLongestDateLength.load(std::memory_order_relaxed);
+
+    /*#if defined(__linux__)
+        io_uring ring;
+        io_uring_queue_init(128, &ring, IORING_SETUP_SQPOLL);
+    #endif*/
+
+#if defined(USE_AIO)
+    std::vector<std::shared_ptr<aiocb>> batchedAIOs;
+#endif
+
+#if defined(__linux__) || defined(USE_AIO)
+    constexpr size_t batchInterval = 1024 * 1024;
+#else
+    constexpr size_t batchInterval = 65536;
 #endif
 
     auto longestEntryLength = numberLength(path.entryIndex.size() - 1);
 
-    std::string availableColumnsAsString = std::to_string(available.columns);
+    auto availableColumnsAsString = std::to_string(available.columns);
     std::string batchedMessage;
-    batchedMessage.reserve(70000);
+    // reserve enough contiguous memory for the entire batch, where the size is number of entries * line length, plus extra formatting characters
+    // this prevents reallocations and thus helps prevent invalidation of the data pointer
+    batchedMessage.reserve(path.entryIndex.size() * (available.columns + 64));
+    size_t offset = 0;
 
     for (long entry = path.entryIndex.size() - 1; entry >= 0; entry--) {
         path.setEntry(entry);
 
-        if (batchedMessage.size() > 65536) {
-/*#if defined(__linux__)                      \
-            // use io_uring for async writing \
-                                              \
-                                              \
-#el*/ #if defined (__unix__) || defined(__APPLE__) || defined(__linux__)
-            memset(&aio, 0, sizeof(struct aiocb));
-            aio.aio_fildes = STDERR_FILENO;
-            aio.aio_buf = static_cast<void*>(batchedMessage.data());
-            aio.aio_nbytes = batchedMessage.size();
-            aio_write(&aio);
+        if (batchedMessage.size() - offset > batchInterval) {
+/*#if defined(__linux__)                                                                                   \
+            auto sqe = io_uring_get_sqe(&ring);                                                            \
+            auto rawByteAtOffset = batchedMessage.data() + offset;                                         \
+            io_uring_prep_write(sqe, STDERR_FILENO, rawByteAtOffset, batchedMessage.size() - offset, 0);   \
+                                                                                                         \ \
+            SQEsSubmitted += io_uring_submit(&ring);                                                       \
+            offset = batchedMessage.size();                                                                \
+#el*/                                                                                                      \
+#if defined (USE_AIO)
+            auto aio = std::make_shared<aiocb>();
+            auto rawByteAtOffset = batchedMessage.data() + offset;
+            aio->aio_fildes = STDERR_FILENO;
+            aio->aio_buf = static_cast<void*>(rawByteAtOffset);
+            aio->aio_nbytes = batchedMessage.size() - offset;
+            aio_write(aio.get());
+
+            offset = batchedMessage.size();
+            batchedAIOs.emplace_back(aio);
 #else
             fputs(batchedMessage.data(), stderr);
-#endif
             batchedMessage.clear();
+#endif
         }
 
         int widthRemaining = available.columns - (numberLength(entry) + longestEntryLength + longestDateLength + 7);
 
-        batchedMessage += formatMessage(
+        batchedMessage += formatColors(
                 "\n[info]\033[" + availableColumnsAsString + "G┃\r┃ [bold]" + std::string(longestEntryLength - numberLength(entry), ' ') + std::to_string(entry) + "[nobold][info]│ [bold]"
                 + std::string(longestDateLength - dates.at(entry).length(), ' ') + dates.at(entry) + "[nobold][info]│ "
         );
@@ -158,7 +205,7 @@ void history() {
                 content = "\033[7m\033[1m" + std::string(type.value()) + ", " + formatBytes(content.length()) + "\033[22m\033[27m";
             else
                 std::erase(content, '\n');
-            batchedMessage += formatMessage("[help]" + content.substr(0, widthRemaining) + "[blank]");
+            batchedMessage += formatColors("[help]" + content.substr(0, widthRemaining) + "[blank]");
             continue;
         }
 
@@ -171,7 +218,7 @@ void history() {
 
             if (!first) {
                 if (entryWidth <= widthRemaining - 2) {
-                    batchedMessage += formatMessage("[help], [blank]");
+                    batchedMessage += formatColors("[help], [blank]");
                     widthRemaining -= 2;
                 }
             }
@@ -182,34 +229,47 @@ void history() {
                     stylizedEntry = "\033[4m" + filename + "\033[24m";
                 else
                     stylizedEntry = "\033[1m" + filename + "\033[22m";
-                batchedMessage += formatMessage("[help]" + stylizedEntry + "[blank]");
+                batchedMessage += formatColors("[help]" + stylizedEntry + "[blank]");
                 widthRemaining -= entryWidth;
                 first = false;
             }
         }
     }
 
-#if defined(__unix__) || defined(__APPLE__) || defined(__linux__)
-    memset(&aio, 0, sizeof(struct aiocb));
-    aio.aio_fildes = STDERR_FILENO;
-    aio.aio_buf = static_cast<void*>(batchedMessage.data());
-    aio.aio_nbytes = batchedMessage.size();
-    aio_write(&aio);
+/*#if defined(__linux__)                                                                           \
+    auto sqe = io_uring_get_sqe(&ring);                                                            \
+    auto rawByteAtOffset = batchedMessage.data() + offset;                                         \
+    io_uring_prep_write(sqe, STDERR_FILENO, rawByteAtOffset, batchedMessage.size() - offset, 0);   \
+                                                                                                 \ \
+    // block until all writes are done                                                             \
+    io_uring_submit_and_wait(&ring, SQEsSubmitted + 1);                                            \
+    io_uring_queue_exit(&ring);                                                                    \
+#el*/                                                                                              \
+#if defined (USE_AIO)
+    auto rawByteAtOffset = batchedMessage.data() + offset;
+    auto aio = std::make_shared<aiocb>();
+    aio->aio_fildes = STDERR_FILENO;
+    aio->aio_buf = static_cast<void*>(rawByteAtOffset);
+    aio->aio_nbytes = batchedMessage.size() - offset;
+    aio_write(aio.get());
+    batchedAIOs.emplace_back(aio);
 
-    struct aiocb* aio_list[1] = {&aio};
-    aio_suspend(aio_list, 1, nullptr);
+    for (const auto& aio : batchedAIOs) {
+        const std::array<const aiocb*, 1> aio_list = {aio.get()};
+        aio_suspend(aio_list.data(), aio_list.size(), nullptr);
+    }
 #else
     fputs(batchedMessage.data(), stderr);
 #endif
 
-    fputs(formatMessage("[info]\n┗━━▌").data(), stderr);
+    fputs(formatColors("[info]\n┗━━▌").data(), stderr);
     Message status_legend_message = "[help]Text, \033[1mFiles\033[22m, \033[4mDirectories\033[24m, \033[7m\033[1mData\033[22m\033[27m[info]";
     usedSpace = columnLength(status_legend_message) + 6;
     if (usedSpace > available.columns) available.columns = usedSpace;
     auto cols = available.columns - usedSpace;
     std::string bar2 = "▐" + repeatString("━", cols);
     fputs((status_legend_message() + bar2).data(), stderr);
-    fputs(formatMessage("┛[blank]\n").data(), stderr);
+    fputs(formatColors("┛[blank]\n").data(), stderr);
 }
 
 void historyJSON() {
