@@ -1,4 +1,4 @@
-# 2023-07-01 21:25
+# 2023-07-01 21:30
 name: act - Clipboard Builds - release
 
 on:
@@ -81,11 +81,13 @@ jobs:
             sudo echo "deb [arch=${{ matrix.arch.os }}] http://ports.ubuntu.com/ $(lsb_release -sc)-security main multiverse universe" | sudo tee -a /etc/apt/sources.list;
             sudo echo "deb [arch=${{ matrix.arch.os }}] http://ports.ubuntu.com/ $(lsb_release -sc)-backports main multiverse universe" | sudo tee -a /etc/apt/sources.list;
             echo "remove archive ubuntu for ports";
-            sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /${{ matrix.arch.os }}/d /etc/apt/sources.list;
-            sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /arm64/d /etc/apt/sources.list;
-            sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /riscv64/d /etc/apt/sources.list;
-            sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /armhf/d /etc/apt/sources.list;
-            sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /ppc64el/d /etc/apt/sources.list;
+            sudo sed -ibak 's!/archive.ubuntu.com!d'/etc/apt/sources.list;
+
+            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /${{ matrix.arch.os }}/d /etc/apt/sources.list;
+            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /arm64/d /etc/apt/sources.list;
+            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /riscv64/d /etc/apt/sources.list;
+            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /armhf/d /etc/apt/sources.list;
+            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /ppc64el/d /etc/apt/sources.list;
             echo "BGN: cat /etc/apt/sources.list";
             cat /etc/apt/sources.list;
             echo "END: cat /etc/apt/sources.list";
