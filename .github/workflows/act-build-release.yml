@@ -4,29 +4,47 @@ name: act - Clipboard Builds - release
 on:
   workflow_dispatch:
 # [ push, pull_request ]
+    inputs:
+      linux_x11_wayland:
+        type: boolean
+        required: true
+        default: false
+      flatpak-amd64:
+        type: boolean
+        required: true
+        default: false
+      macos-arm64-amd64:
+        type: boolean
+        required: true
+        default: false
+      windows-amd64:
+        type: boolean
+        required: true
+        default: true
+      windows-arm64:
+        type: boolean
+        required: true
+        default: false
+      freebsd-amd64:
+        type: boolean
+        required: true
+        default: false
+      openbsd-amd64:
+        type: boolean
+        required: true
+        default: false
+      openbsd-arm64:
+        type: boolean
+        required: true
+        default: false
+      netbsd-amd64:
+        type: boolean
+        required: true
+        default: false
 
 env:
   TAG_NAME: clipboard-release
   PRG_NAME: clipboard
-  inputs:
-    linux_x11_wayland:
-      default: false
-    flatpak-amd64:
-      default: false
-    macos-arm64-amd64:
-      default: false
-    windows-amd64:
-      default: true
-    windows-arm64:
-      default: false
-    freebsd-amd64:
-      default: false
-    openbsd-amd64:
-      default: false
-    openbsd-arm64:
-      default: false
-    netbsd-amd64:
-      default: false
 
 jobs:
   linux_x11_wayland:
