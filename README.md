@@ -22,7 +22,7 @@ Don't just take my word for it!
 
 - Copy and paste text, files, directories, binary data, your goat, _anything_
 - Infinite numbers of clipboards with unlimited capacity AND history each,
-- Seriously kickass performance 🥾 because I'm sick of slow software,
+- Seriously kickass performance 🥾🤯 because I'm sick of slow software,
 - Seamless integration with your [existing clipboard systems](https://github.com/Slackadays/Clipboard/wiki/GUI-Clipboard-Compat),
 - Support for your favorite languages like español, português, and Türkçe,
 - A superbly scriptable API to automate your workflows in a cinch, 
@@ -1459,16 +1459,23 @@ Note: By default, CB uses the user's home directory to generate the persistent d
 
 <br>
 
-<details><summary> &ensp; <b><code>CLIPBOARD_ALWAYS_PERSIST</code></b> &emsp; Set this to "true" or "1" to make CB always use persistent clipboards.</summary>
+<details><summary> &ensp; <b><code>CLIPBOARD_CUSTOMPERSIST</code></b> &emsp; Set this to the clipboards you want to make persistent, using regex.</summary>
 
 <br>
 
 Make everything you copy persistent.
 
 ```sh
-$ export CLIPBOARD_ALWAYS_PERSIST=1
+$ export CLIPBOARD_CUSTOMPERSIST=".*"
 $ cb copy Foo Bar Baz
 # This puts everything in the persistent directory but still with the clipboard name "0"
+```
+
+Make some clipboards persistent.
+
+```sh
+$ export CLIPBOARD_CUSTOMPERSIST=5
+$ cb copy5 Foo Bar Baz
 ```
 
 </details>
