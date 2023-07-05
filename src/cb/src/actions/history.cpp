@@ -191,14 +191,15 @@ void history() {
         int widthRemaining = available.columns - (numberLength(entry) + longestEntryLength + longestDateLength + 7);
 
         batchedMessage += formatColors(
-                "\n[info]\033[" + availableColumnsAsString + "G┃\r┃ [bold]" + std::string(longestEntryLength - numberLength(entry), ' ') + std::to_string(entry) + "[nobold][info]│ [bold]"
-                + std::string(longestDateLength - dates.at(entry).length(), ' ') + dates.at(entry) + "[nobold][info]│[help] "
+                "\n[info]\033[" + availableColumnsAsString + "G┃\r┃ [bold]" + std::string(longestEntryLength - numberLength(entry), ' ') + std::to_string(entry) + "[nobold]│ [bold]"
+                + std::string(longestDateLength - dates.at(entry).length(), ' ') + dates.at(entry) + "[nobold]│[help] "
         );
 
-        if (path.holdsRawDataInCurrentEntry()) {
-            std::string content(fileContents(path.data.raw));
-            if (auto type = inferMIMEType(content); type.has_value())
-                content = "\033[7m\033[1m" + std::string(type.value()) + ", " + formatBytes(content.length()) + "\033[22m\033[27m";
+        if (fs::exists(path.data.raw)) {
+            auto content(fileContents(path.data.raw));
+            if (content.empty()) continue; // don't use holdsRawDataInCurrentEntry because we are reading anyway, so we can save on a syscall
+            if (auto MIMEtype = inferMIMEType(content); MIMEtype.has_value())
+                content = "\033[7m\033[1m " + std::string(MIMEtype.value()) + ", " + formatBytes(content.length()) + " \033[22m\033[27m";
             else
                 std::erase(content, '\n');
             batchedMessage += content.substr(0, widthRemaining);
@@ -207,24 +208,23 @@ void history() {
 
         for (bool first = true; const auto& entry : fs::directory_iterator(path.data)) {
             auto filename = entry.path().filename().string();
-            if (filename == constants.data_file_name && fs::is_empty(entry.path())) continue;
-            int entryWidth = filename.length();
+            if (filename == constants.data_file_name && entry.file_size() == 0) continue;
 
             if (widthRemaining <= 0) break;
 
             if (!first) {
-                if (entryWidth <= widthRemaining - 2) {
+                if (filename.length() <= widthRemaining - 2) {
                     batchedMessage += ", ";
                     widthRemaining -= 2;
                 }
             }
 
-            if (entryWidth <= widthRemaining) {
+            if (filename.length() <= widthRemaining) {
                 if (entry.is_directory())
                     batchedMessage += "\033[4m" + filename + "\033[24m";
                 else
                     batchedMessage += "\033[1m" + filename + "\033[22m";
-                widthRemaining -= entryWidth;
+                widthRemaining -= filename.length();
                 first = false;
             }
         }
@@ -257,7 +257,7 @@ void history() {
 #endif
 
     fputs(formatColors("[info]\n┗━━▌").data(), stderr);
-    Message status_legend_message = "[help]Text, \033[1mFiles\033[22m, \033[4mDirectories\033[24m, \033[7m\033[1mData\033[22m\033[27m[info]";
+    Message status_legend_message = "[help]Text, \033[1mFiles\033[22m, \033[4mDirectories\033[24m, \033[7m\033[1m Data \033[22m\033[27m[info]";
     usedSpace = columnLength(status_legend_message) + 6;
     if (usedSpace > available.columns) available.columns = usedSpace;
     auto cols = available.columns - usedSpace;
