@@ -248,10 +248,19 @@ std::string fileContents(const fs::path& path) {
     int fd = open(path.string().data(), O_RDONLY);
     if (fd == -1) throw std::runtime_error("Could not open file " + path.string() + ": " + std::strerror(errno));
     std::string contents;
+#if defined(__linux__) || defined(__FreeBSD__)
     std::array<char, 65536> buffer;
+#elif defined(__APPLE__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
+    std::array<char, 16384> buffer;
+#else
+    std::array<char, PIPE_BUF> buffer;
+#endif
     ssize_t bytes_read;
-    while ((bytes_read = read(fd, buffer.data(), buffer.size())) > 0)
+    errno = 0;
+    while ((bytes_read = read(fd, buffer.data(), buffer.size())) > 0) {
         contents.append(buffer.data(), bytes_read);
+        if (bytes_read < buffer.size() && errno == 0) break; // check if we reached EOF early and not due to an error
+    }
     close(fd);
     return contents;
 #else
@@ -672,6 +681,39 @@ void setFilepaths() {
             (getenv("CLIPBOARD_PERSISTDIR") ? getenv("CLIPBOARD_PERSISTDIR") : (getenv("XDG_STATE_HOME") ? getenv("XDG_STATE_HOME") : global_path.home)) / constants.persistent_directory_name;
 
     path = Clipboard(clipboard_name, clipboard_entry);
+}
+
+void fixMissingItems() {
+    using enum Action;
+    if (action_is_one_of(Cut, Copy, Add) && io_type == IOType::File) {
+        for (auto& item : copying.items) {
+            if (fs::exists(item)) continue;
+            std::vector<std::string> candidates;
+            for (const auto& entry : fs::directory_iterator(item.parent_path().empty() ? fs::current_path() : item.parent_path()))
+                candidates.emplace_back(entry.path().filename().string());
+            auto closestCandidate = *(std::min_element(candidates.begin(), candidates.end(), [&](const auto& a, const auto& b) {
+                return levenshteinDistance(a, item.filename().string()) < levenshteinDistance(b, item.filename().string());
+            }));
+            auto closestScore = levenshteinDistance(closestCandidate, item.filename().string());
+            if (closestScore >= 3) continue;
+            stopIndicator();
+            fprintf(stderr,
+                    formatColors(
+                            "[progress]⬤ CB couldn't find the item [bold]%s[nobold], but did find a similar one named [bold]%s[nobold]. Would you like to use that one instead? [bold][y(es)/n(o)] "
+                    )
+                            .data(),
+                    item.filename().string().data(),
+                    closestCandidate.data());
+            std::string decision;
+            std::getline(std::cin, decision);
+            fprintf(stderr, "%s", formatColors("[blank]").data());
+            startIndicator();
+            if (decision == "y" || decision == "yes") {
+                auto index = std::distance(copying.items.begin(), std::find(copying.items.begin(), copying.items.end(), item));
+                copying.items.at(index) = item.parent_path().empty() ? fs::path(closestCandidate) : item.parent_path() / closestCandidate;
+            }
+        }
+    }
 }
 
 void checkForNoItems() {
