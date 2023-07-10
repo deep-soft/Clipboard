@@ -150,7 +150,7 @@ flatpak install app.getclipboard.Clipboard
 # Then, add that command to your terminal profile (like .bashrc) to make it work every time.
 ```
 
-<img width='240' alt='Download on Flathub' src='https://dl.flathub.org/assets/badges/flathub-badge-en.svg' align="right"/>
+<a href="https://flathub.org/apps/app.getclipboard.Clipboard"><img width='240' alt='Download on Flathub' src='https://dl.flathub.org/assets/badges/flathub-badge-en.svg' align="right"/></a>
 
 <br>
 
@@ -245,7 +245,7 @@ $ alias cb='snap run clipboard'
 ### <img src="documentation/readme-assets/InstallManually.png" alt="Install Manually" height=25px />
 You'll need CMake and C++20 support, and if you want X11 or Wayland support, you'll also need libx11 or libwayland plus Wayland Protocols respectively. If you're on Linux, you'll need ALSA.
 
-Get the latest release instead of the latest commit by adding `--branch 0.8.0` right after `git clone...`.
+Get the latest release instead of the latest commit by adding `--branch 0.8.1` right after `git clone...`.
 
 Change the system installation prefix by adding `-DCMAKE_INSTALL_PREFIX=/custom/prefix` to `cmake ..`, or the library install location by adding `-DCMAKE_INSTALL_LIBDIR=/custom/dir`.
 ```bash
