@@ -20,7 +20,7 @@ void noteText() {
     if (copying.items.size() >= 1) {
         if (copying.items.at(0).string() == "") {
             fs::remove(path.metadata.notes);
-            if (output_silent) return;
+            if (output_silent || confirmation_silent) return;
             stopIndicator();
             fprintf(stderr, "%s", formatColors("[success][inverse] ✔ [noinverse] Removed note[blank]\n").data());
         } else {
@@ -29,13 +29,13 @@ void noteText() {
                 writeToFile(path.metadata.notes, copying.items.at(i).string(), true);
                 if (i != copying.items.size() - 1) writeToFile(path.metadata.notes, " ", true);
             }
-            if (output_silent) return;
+            if (output_silent || confirmation_silent) return;
             stopIndicator();
-            fprintf(stderr, formatColors("[success][inverse] ✔ [noinverse] Saved note \"%s\"[blank]\n").data(), fileContents(path.metadata.notes).data());
+            fprintf(stderr, formatColors("[success][inverse] ✔ [noinverse] Saved note \"%s\"[blank]\n").data(), fileContents(path.metadata.notes).value().data());
         }
     } else if (copying.items.empty()) {
         if (fs::is_regular_file(path.metadata.notes)) {
-            std::string content(fileContents(path.metadata.notes));
+            std::string content(fileContents(path.metadata.notes).value());
             if (is_tty.out) {
                 stopIndicator();
                 printf(formatColors("[info]┃ Note for this clipboard: %s[blank]\n").data(), content.data());
@@ -52,7 +52,7 @@ void noteText() {
 void notePipe() {
     std::string content(pipedInContent());
     writeToFile(path.metadata.notes, content);
-    if (output_silent) return;
+    if (output_silent || confirmation_silent) return;
     stopIndicator();
     fprintf(stderr, formatColors("[success][inverse] ✔ [noinverse] Saved note \"%s\"[blank]\n").data(), content.data());
     exit(EXIT_SUCCESS);

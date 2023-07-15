@@ -161,21 +161,43 @@ unsigned long levenshteinDistance(const std::string_view& one, const std::string
     return matrix.at(one.size()).at(two.size());
 };
 
-std::string formatColors(const std::string_view& str, bool colorful) {
-    std::string temp(str);
-    for (size_t i = 0; (i = temp.find('[', i)) != std::string::npos; i++) {
-        auto j = temp.find(']', i);
-        if (j == std::string::npos) break;
-        const std::string_view result = temp.substr(i, j - i + 1);
+std::string formatColors(const std::string_view& oldStr, bool colorful) {
+    std::string newStr;
+    newStr.reserve(oldStr.size());
+    for (size_t i = 0, lastAddedi = 0; i < oldStr.size(); i++) {
+        while (oldStr[i] != '[' && i < oldStr.size())
+            i++;
+
+        newStr += oldStr.substr(lastAddedi, i - lastAddedi);
+
+        auto j = oldStr.find(']', i + 1);
+        if (j == std::string::npos) {
+            newStr += oldStr[i]; // no match, so just add the bracket
+            break;
+        }
+
+        auto matches = [&](const std::string_view& key) {
+            for (size_t k = 1; k < key.size() - 1; k++) // only compare the middle part
+                if (key[k] != oldStr[i + k]) return false;
+            return true;
+        };
+
+        bool matched = false;
+
         for (const auto& key : colors) {
-            if (key.first == result) {
-                temp.replace(i, result.length(), colorful ? key.second : "");
-                if (!colorful) i--; // because i may be at the start of the next color
+            if (matches(key.first)) {
+                if (colorful) newStr += key.second;
+                i += key.first.length() - 1;
+                matched = true;
                 break;
             }
         }
+
+        if (!matched) newStr += oldStr[i]; // no match, so just add the bracket
+
+        lastAddedi = i + 1;
     }
-    return temp;
+    return newStr;
 }
 
 std::string JSONescape(const std::string_view& input) {
@@ -243,10 +265,10 @@ size_t columnLength(const std::string_view& message) {
     return temp.size() - std::count_if(temp.begin(), temp.end(), [](auto c) { return (c & 0xC0) == 0x80; }); // remove UTF-8 multibyte characters
 }
 
-std::string fileContents(const fs::path& path) {
+std::optional<std::string> fileContents(const fs::path& path) {
 #if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
     int fd = open(path.string().data(), O_RDONLY);
-    if (fd == -1) throw std::runtime_error("Could not open file " + path.string() + ": " + std::strerror(errno));
+    if (fd == -1) return std::nullopt;
     std::string contents;
 #if defined(__linux__) || defined(__FreeBSD__)
     std::array<char, 65536> buffer;
@@ -265,7 +287,9 @@ std::string fileContents(const fs::path& path) {
     return contents;
 #else
     std::stringstream buffer;
-    buffer << std::ifstream(path, std::ios::binary).rdbuf();
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) return std::nullopt;
+    buffer << file.rdbuf();
     return buffer.str();
 #endif
 }
@@ -780,11 +804,16 @@ void performAction() {
     using enum IOType;
     using enum Action;
     using namespace PerformAction;
+    auto complainAboutMissingAction = [&](const std::string_view& io_type_name) {
+        error_exit(formatColors("[error][inverse] ✘ [noinverse] Error! CB is trying to do an action that doesn't exist yet: action name %s, IO type %s[blank]\n"), actions[action], io_type_name);
+    };
     if (io_type == File) {
         if (action == Copy || action == Cut)
             copy();
         else if (action == Add)
             addFiles();
+        else
+            complainAboutMissingAction("file");
     } else if (io_type == Pipe) {
         if (action == Copy || action == Cut)
             pipeIn();
@@ -804,10 +833,14 @@ void performAction() {
             ignoreRegex();
         else if (action == Status)
             statusJSON();
+        else if (action == Load)
+            load();
         else if (action == History)
             historyJSON();
         else if (action == Search)
             searchJSON();
+        else
+            complainAboutMissingAction("pipe");
     } else if (io_type == Text) {
         if (action == Copy || action == Cut)
             copyText();
@@ -843,6 +876,8 @@ void performAction() {
             history();
         else if (action == Search)
             search();
+        else
+            complainAboutMissingAction("text");
     }
 }
 
@@ -872,7 +907,7 @@ void showFailures() {
 }
 
 void showSuccesses() {
-    if (output_silent || !is_tty.err) return;
+    if (output_silent || confirmation_silent || !is_tty.err) return;
     if (successes.bytes > 0 && is_tty.err) {
         fprintf(stderr, byte_success_message().data(), did_action[action].data(), formatBytes(successes.bytes.load()).data());
     } else if ((successes.files == 1 && successes.directories == 0) || (successes.files == 0 && successes.directories == 1)) {
