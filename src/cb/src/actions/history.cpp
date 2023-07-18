@@ -19,12 +19,14 @@
 #include <fcntl.h>
 #include <format>
 #include <io.h>
+#define write _write
+#define STDERR_FILENO 2
 #endif
 
-/*#if defined(__linux__)
+#if defined(__linuxx__)
 #include <liburing.h>
 int SQEsSubmitted = 0;
-#endif*/
+#endif
 
 #if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
 #include <fcntl.h>
@@ -123,10 +125,10 @@ void history() {
     // std::cout << "processing dates took " << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - now).count() << "ms" << std::endl;
     // exit(0);
 
-    /*#if defined(__linux__)
-        io_uring ring;
-        io_uring_queue_init(128, &ring, IORING_SETUP_SQPOLL);
-    #endif*/
+#if defined(__linuxx__)
+    io_uring ring;
+    io_uring_queue_init(128, &ring, IORING_SETUP_SQPOLL);
+#endif
 
 #if defined(USE_AIO)
     std::vector<std::shared_ptr<aiocb>> batchedAIOs;
@@ -151,12 +153,16 @@ void history() {
     int columns = available.columns - usedSpace;
     fprintf(stderr, "%s%s", repeatString("━", columns).data(), formatColors("┓[blank]").data());
 
-    auto availableColumnsAsString = std::to_string(available.columns);
     std::string batchedMessage;
     // reserve enough contiguous memory for the entire batch, where the size is number of entries * line length, plus extra formatting characters
     // this prevents reallocations and thus helps prevent invalidation of the data pointer
     batchedMessage.reserve(path.entryIndex.size() * (available.columns + 64));
     size_t offset = 0;
+
+    std::array<std::string, 3> preformattedMessageParts = {
+            formatColors("\n[info]\033[" + std::to_string(available.columns) + "G┃\r┃ [bold]"),
+            formatColors("[nobold]│ [bold]"),
+            formatColors("[nobold]│[help] ")};
 
     for (auto& thread : threads)
         thread.join();
@@ -167,15 +173,14 @@ void history() {
         path.setEntry(entry);
 
         if (batchedMessage.size() - offset > batchInterval) {
-/*#if defined(__linux__)                                                                                   \
-            auto sqe = io_uring_get_sqe(&ring);                                                            \
-            auto rawByteAtOffset = batchedMessage.data() + offset;                                         \
-            io_uring_prep_write(sqe, STDERR_FILENO, rawByteAtOffset, batchedMessage.size() - offset, 0);   \
-                                                                                                         \ \
-            SQEsSubmitted += io_uring_submit(&ring);                                                       \
-            offset = batchedMessage.size();                                                                \
-#el*/                                                                                                      \
-#if defined (USE_AIO)
+#if defined(__linuxx__)
+            auto sqe = io_uring_get_sqe(&ring);
+            auto rawByteAtOffset = batchedMessage.data() + offset;
+            io_uring_prep_write(sqe, STDERR_FILENO, rawByteAtOffset, batchedMessage.size() - offset, 0);
+
+            SQEsSubmitted += io_uring_submit(&ring);
+            offset = batchedMessage.size();
+#elif defined(USE_AIO)
             auto aio = std::make_shared<aiocb>();
             auto rawByteAtOffset = batchedMessage.data() + offset;
             aio->aio_fildes = STDERR_FILENO;
@@ -186,17 +191,15 @@ void history() {
             offset = batchedMessage.size();
             batchedAIOs.emplace_back(aio);
 #else
-            fputs(batchedMessage.data(), stderr);
+            auto ret = write(STDERR_FILENO, batchedMessage.data(), batchedMessage.size());
             batchedMessage.clear();
 #endif
         }
 
         int widthRemaining = available.columns - (numberLength(entry) + longestEntryLength + longestDateLength + 7);
 
-        batchedMessage += formatColors(
-                "\n[info]\033[" + availableColumnsAsString + "G┃\r┃ [bold]" + std::string(longestEntryLength - numberLength(entry), ' ') + std::to_string(entry) + "[nobold]│ [bold]"
-                + std::string(longestDateLength - dates.at(entry).length(), ' ') + dates.at(entry) + "[nobold]│[help] "
-        );
+        batchedMessage += preformattedMessageParts[0] + std::string(longestEntryLength - numberLength(entry), ' ') + std::to_string(entry) + preformattedMessageParts[1]
+                          + std::string(longestDateLength - dates.at(entry).length(), ' ') + dates.at(entry) + preformattedMessageParts[2];
 
         if (auto temp(fileContents(path.data.raw)); temp.has_value()) {
             auto content = std::move(temp.value());
@@ -233,16 +236,15 @@ void history() {
         }
     }
 
-/*#if defined(__linux__)                                                                           \
-    auto sqe = io_uring_get_sqe(&ring);                                                            \
-    auto rawByteAtOffset = batchedMessage.data() + offset;                                         \
-    io_uring_prep_write(sqe, STDERR_FILENO, rawByteAtOffset, batchedMessage.size() - offset, 0);   \
-                                                                                                 \ \
-    // block until all writes are done                                                             \
-    io_uring_submit_and_wait(&ring, SQEsSubmitted + 1);                                            \
-    io_uring_queue_exit(&ring);                                                                    \
-#el*/                                                                                              \
-#if defined (USE_AIO)
+#if defined(__linuxx__)
+    auto sqe = io_uring_get_sqe(&ring);
+    auto rawByteAtOffset = batchedMessage.data() + offset;
+    io_uring_prep_write(sqe, STDERR_FILENO, rawByteAtOffset, batchedMessage.size() - offset, 0);
+
+    // block until all writes are done
+    io_uring_submit_and_wait(&ring, SQEsSubmitted + 1);
+    io_uring_queue_exit(&ring);
+#elif defined(USE_AIO)
     auto rawByteAtOffset = batchedMessage.data() + offset;
     auto aio = std::make_shared<aiocb>();
     aio->aio_fildes = STDERR_FILENO;
@@ -256,7 +258,7 @@ void history() {
         aio_suspend(aio_list.data(), aio_list.size(), nullptr);
     }
 #else
-    fputs(batchedMessage.data(), stderr);
+    auto ret = write(STDERR_FILENO, batchedMessage.data(), batchedMessage.size());
 #endif
 
     fputs(formatColors("[info]\n┗━━▌").data(), stderr);
