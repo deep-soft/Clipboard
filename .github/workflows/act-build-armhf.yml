@@ -61,12 +61,12 @@ jobs:
 
           sudo dpkg --add-architecture "${{ matrix.arch.os }}"
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt install --force -y \
             "${GPP_PACKAGE}" \
             "libx11-dev:${{ matrix.arch.os }}" \
             "libwayland-dev:${{ matrix.arch.os }}" \
             "wayland-protocols:${{ matrix.arch.os }}" \
-            "libasound-dev:${{ matrix.arch.os }}"  && true
+            "libasound-dev:${{ matrix.arch.os }}"  || true
 
           cd build
           
