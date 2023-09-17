@@ -1,0 +1,110 @@
+# 2023-07-01 21:30
+name: act - Clipboard Builds - armhf
+
+on:
+  workflow_dispatch:
+# [ push, pull_request ]
+    inputs:
+      linux_x11_wayland:
+        type: boolean
+        required: true
+        default: false
+
+env:
+  TAG_NAME: clipboard-release
+  PRG_NAME: clipboard
+
+jobs:
+  linux_x11_wayland:
+    if: ${{ inputs.linux_x11_wayland }}
+    strategy:
+      fail-fast: false
+      matrix:
+        gcc: [ 11 ]
+        arch:
+          - { os: armhf     , gcc: arm-linux-gnueabihf    , needs_ports: "1" }
+
+    runs-on: ubuntu-20.04
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Run a script
+        run: |
+          # set -x
+          GPP_PACKAGE="g++-${{ matrix.gcc }}-${{ matrix.arch.gcc }}"
+          if [[ "${{ matrix.arch.gcc }}" == "$(uname --processor)-linux-gnu" ]]; then          
+            GPP_PACKAGE="g++-${{ matrix.gcc }}"
+          fi
+          
+          if [[ "${{ matrix.arch.needs_ports }}" == "1" ]]; then
+            sudo echo "deb [arch=${{ matrix.arch.os }}] http://ports.ubuntu.com/ $(lsb_release -sc) main multiverse universe" | sudo tee -a /etc/apt/sources.list;
+            sudo echo "deb [arch=${{ matrix.arch.os }}] http://ports.ubuntu.com/ $(lsb_release -sc)-updates main multiverse universe" | sudo tee -a /etc/apt/sources.list;
+            sudo echo "deb [arch=${{ matrix.arch.os }}] http://ports.ubuntu.com/ $(lsb_release -sc)-security main multiverse universe" | sudo tee -a /etc/apt/sources.list;
+            sudo echo "deb [arch=${{ matrix.arch.os }}] http://ports.ubuntu.com/ $(lsb_release -sc)-backports main multiverse universe" | sudo tee -a /etc/apt/sources.list;
+            echo "remove archive ubuntu for ports";
+            sudo sed -ibak '/\/archive.ubuntu.com/d' /etc/apt/sources.list;
+
+            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /${{ matrix.arch.os }}/d /etc/apt/sources.list;
+            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /arm64/d /etc/apt/sources.list;
+            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /riscv64/d /etc/apt/sources.list;
+            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /armhf/d /etc/apt/sources.list;
+            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /ppc64el/d /etc/apt/sources.list;
+            echo "BGN: cat /etc/apt/sources.list";
+            cat /etc/apt/sources.list;
+            echo "END: cat /etc/apt/sources.list";
+          fi
+          
+          # This limits apt to only looking or amd64 and i386 from Azure, see https://github.com/actions/virtual-environments/issues/1961
+          sudo sed -i'' -E 's/^deb http:\/\/(azure.archive|security).ubuntu.com/deb [arch=amd64,i386] http:\/\/\1.ubuntu.com/' /etc/apt/sources.list
+
+          sudo dpkg --add-architecture "${{ matrix.arch.os }}"
+          sudo apt-get update
+          sudo apt-get install -y \
+            "${GPP_PACKAGE}" \
+            "libx11-dev:${{ matrix.arch.os }}" \
+            "libwayland-dev:${{ matrix.arch.os }}" \
+            "wayland-protocols:${{ matrix.arch.os }}" \
+            "libasound-dev:${{ matrix.arch.os }}"
+
+          cd build
+          
+          cmake .. \
+            "-DCMAKE_CXX_COMPILER=${{ matrix.arch.gcc }}-g++-${{ matrix.gcc }}" \
+            "-DCMAKE_C_COMPILER=${{ matrix.arch.gcc }}-gcc-${{ matrix.gcc }}" \
+            "-DCMAKE_BUILD_TYPE=Release"
+          
+          cmake --build . -j 4
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.PRG_NAME }}-linux-${{ matrix.arch.os }}
+          path: build/output
+
+      - name: Publish Release pre 1
+        shell: bash
+        run: |
+          staging="${{ env.PRG_NAME }}-${{ matrix.arch.os }}-${{ matrix.arch.target }}-${{ matrix.gcc }}"
+          echo "WORK_DIR=$(pwd)" >> $GITHUB_ENV
+          echo "ASSET_REL=$staging.tar.xz" >> $GITHUB_ENV
+
+      - name: Publish Release pre 2
+        shell: bash
+        run: |
+          touch "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          pwd
+          ls -l
+          cd ./build/output/bin/
+          tar --exclude=*.tar* -cv cb* | xz -9 > "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd
+          pwd
+          ls -l "${{ env.WORK_DIR }}/${{ env.ASSET_REL }}"
+          cd "${{ env.WORK_DIR }}"
+
+      - name: Publish Release
+        uses: deep-soft/action-gh-release@v1
+        with:
+          draft: true
+          tag_name: ${{ env.TAG_NAME }}
+          files: |
+            ${{ env.ASSET_REL }}
