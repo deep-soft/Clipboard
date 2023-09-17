@@ -33,6 +33,7 @@ jobs:
         # continue-on-error: true
         run: |
           # set -x
+          set +e
           GPP_PACKAGE="g++-${{ matrix.gcc }}-${{ matrix.arch.gcc }}"
           if [[ "${{ matrix.arch.gcc }}" == "$(uname --processor)-linux-gnu" ]]; then          
             GPP_PACKAGE="g++-${{ matrix.gcc }}"
