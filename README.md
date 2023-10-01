@@ -245,7 +245,7 @@ $ alias cb='snap run clipboard'
 ### <img src="documentation/readme-assets/InstallManually.png" alt="Install Manually" height=25px />
 You'll need CMake and C++20 support, and if you want X11 or Wayland support, you'll also need libx11 or libwayland plus Wayland Protocols respectively. If you're on Linux, you'll need ALSA.
 
-Get the latest release instead of the latest commit by adding `--branch 0.8.1` right after `git clone...`.
+Get the latest release instead of the latest commit by adding `--branch 0.8.2` right after `git clone...`.
 
 Change the system installation prefix by adding `-DCMAKE_INSTALL_PREFIX=/custom/prefix` to `cmake ..`, or the library install location by adding `-DCMAKE_INSTALL_LIBDIR=/custom/dir`.
 ```bash
@@ -1553,7 +1553,7 @@ $ cb cp "I'm running out of Aventura references"
 
 <br>
 
-<details><summary> &ensp; <b><code>CLIPBOARD_THEME</code></b> &emsp; Set this to the color theme that CB will use. Choose between <code>light</code>, <code>darkhighcontrast</code>, <code>lighthighcontrast</code>, <code>amber</code>, and <code>green</code> (the default is <code>dark</code>).</summary>
+<details><summary> &ensp; <b><code>CLIPBOARD_THEME</code></b> &emsp; Set this to the color theme that CB will use. Choose between <code>light</code>, <code>darkhighcontrast</code>, <code>lighthighcontrast</code>, <code>amber</code>, <code>green</code>, and <code>ansi</code> (the default is <code>dark</code>).</summary>
 
 <br>
 

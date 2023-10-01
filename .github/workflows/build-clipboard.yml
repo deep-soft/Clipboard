@@ -64,7 +64,7 @@ jobs:
           sudo sed -i'' -E 's/^deb http:\/\/(azure.archive|security).ubuntu.com/deb [arch=amd64,i386] http:\/\/\1.ubuntu.com/' /etc/apt/sources.list
 
           sudo dpkg --add-architecture "${{ matrix.arch.os }}"
-          sudo apt-get update
+          sudo apt-get update || true
           sudo apt-get install -y \
             "${GPP_PACKAGE}" \
             "libx11-dev:${{ matrix.arch.os }}" \
