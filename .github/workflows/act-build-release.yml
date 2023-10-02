@@ -83,11 +83,6 @@ jobs:
             echo "remove archive ubuntu for ports";
             sudo sed -ibak '/\/archive.ubuntu.com/d' /etc/apt/sources.list;
 
-            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /${{ matrix.arch.os }}/d /etc/apt/sources.list;
-            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /arm64/d /etc/apt/sources.list;
-            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /riscv64/d /etc/apt/sources.list;
-            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /armhf/d /etc/apt/sources.list;
-            #sudo sed -ibak -e '/archive.ubuntu.com/!b' -e /ppc64el/d /etc/apt/sources.list;
             echo "BGN: cat /etc/apt/sources.list";
             cat /etc/apt/sources.list;
             echo "END: cat /etc/apt/sources.list";
@@ -104,6 +99,7 @@ jobs:
             "libwayland-dev:${{ matrix.arch.os }}" \
             "wayland-protocols:${{ matrix.arch.os }}" \
             "libasound-dev:${{ matrix.arch.os }}"
+            "liburing-dev:${{ matrix.arch.os }}"
 
           cd build
           
