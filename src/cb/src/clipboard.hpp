@@ -1,5 +1,6 @@
 /*  The Clipboard Project - Cut, copy, and paste anything, anytime, anywhere, all from the terminal.
     Copyright (C) 2023 Jackson Huff and other contributors on GitHub.com
+    SPDX-License-Identifier: GPL-3.0-or-later
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
@@ -29,6 +30,9 @@
 #include <valarray>
 #include <vector>
 
+#include <clipboard/fork.hpp>
+#include <clipboard/gui.hpp>
+
 #if defined(_WIN32) || defined(_WIN64)
 #include <io.h>
 #include <shlobj.h>
@@ -47,9 +51,6 @@
 #include <termios.h>
 #include <unistd.h>
 #endif
-
-#include <clipboard/fork.hpp>
-#include <clipboard/gui.hpp>
 
 namespace fs = std::filesystem;
 
@@ -80,7 +81,7 @@ struct Constants {
     std::string_view default_clipboard_name = "0";
     unsigned long default_clipboard_entry = 0;
     std::string_view temporary_directory_name = "Clipboard";
-    std::string_view persistent_directory_name = ".clipboard";
+    std::string_view persistent_directory_name = ".local/state/clipboard";
     std::string_view original_files_name = "originals";
     std::string_view notes_name = "notes";
     std::string_view mime_name = "mime";
@@ -211,7 +212,7 @@ struct IsTTY {
 };
 extern IsTTY is_tty;
 
-enum class Action : unsigned int { Cut, Copy, Paste, Clear, Show, Edit, Add, Remove, Note, Swap, Status, Info, Load, Import, Export, History, Ignore, Search, Undo, Redo };
+enum class Action : unsigned int { Cut, Copy, Paste, Clear, Show, Edit, Add, Remove, Note, Swap, Status, Info, Load, Import, Export, History, Ignore, Search, Undo, Redo, Config };
 
 extern Action action;
 
@@ -232,11 +233,11 @@ public:
     T& original(const Action& index) { return internal_original.value()[static_cast<unsigned int>(index)]; }
 };
 
-extern EnumArray<std::string_view, 20> actions;
-extern EnumArray<std::string_view, 20> action_shortcuts;
-extern EnumArray<std::string_view, 20> doing_action;
-extern EnumArray<std::string_view, 20> did_action;
-extern EnumArray<std::string_view, 20> action_descriptions;
+extern EnumArray<std::string_view, 21> actions;
+extern EnumArray<std::string_view, 21> action_shortcuts;
+extern EnumArray<std::string_view, 21> doing_action;
+extern EnumArray<std::string_view, 21> did_action;
+extern EnumArray<std::string_view, 21> action_descriptions;
 
 extern std::array<std::pair<std::string_view, std::string_view>, 10> colors;
 
@@ -360,7 +361,8 @@ std::string makeControlCharactersVisible(const std::string_view& oldStr, size_t 
 unsigned long levenshteinDistance(const std::string_view& one, const std::string_view& two);
 void setLanguagePT();
 void setLanguageTR();
-void setLanguageES();
+void setLanguageES_CO();
+void setLanguageES_DO();
 void setLanguageDE();
 void setLanguageFR();
 void setupHandlers();
@@ -449,11 +451,13 @@ extern Message one_clipboard_success_message;
 extern Message many_clipboards_success_message;
 extern Message clipboard_name_message;
 extern Message internal_error_message;
+extern Message cb_config_message;
 
 extern ClipboardContent getGUIClipboard(const std::string& requested_mime);
 extern void writeToGUIClipboard(const ClipboardContent& clipboard);
 extern const bool GUIClipboardSupportsCut;
 extern bool playAsyncSoundEffect(const std::valarray<short>& samples);
+extern std::optional<std::string> findUsableEditor();
 
 namespace PerformAction {
 void copyItem(const fs::path& f, const bool use_regular_copy = copying.use_safe_copy);
@@ -487,4 +491,5 @@ void history();
 void historyJSON();
 void search();
 void searchJSON();
+void config();
 } // namespace PerformAction

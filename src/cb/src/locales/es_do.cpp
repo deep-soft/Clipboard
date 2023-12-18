@@ -17,7 +17,7 @@
 
 using enum Action;
 
-void setLanguageES_CO() {
+void setLanguageES_DO() {
     actions[Cut] = "cortar";
     actions[Copy] = "copiar";
     actions[Paste] = "pegar";

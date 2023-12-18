@@ -1,5 +1,6 @@
 /*  The Clipboard Project - Cut, copy, and paste anything, anytime, anywhere, all from the terminal.
     Copyright (C) 2023 Jackson Huff and other contributors on GitHub.com
+    SPDX-License-Identifier: GPL-3.0-or-later
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
@@ -260,8 +261,10 @@ void setLocale() {
         locale = getenv("CLIPBOARD_LOCALE") ? getenv("CLIPBOARD_LOCALE") : std::locale("").name();
         std::locale::global(std::locale(locale));
     } catch (...) {}
-    if (locale.substr(0, 2) == "es")
-        setLanguageES();
+    if (locale.substr(0, 5) == "es_CO")
+        setLanguageES_CO();
+    else if (locale.substr(0, 2) == "es")
+        setLanguageES_DO();
     else if (locale.substr(0, 2) == "pt")
         setLanguagePT();
     else if (locale.substr(0, 2) == "tr")
@@ -387,7 +390,7 @@ template <typename T>
 Action getAction() {
     using enum Action;
     if (arguments.size() >= 1) {
-        for (const auto& entry : {Cut, Copy, Paste, Clear, Show, Edit, Add, Remove, Note, Swap, Status, Info, Load, Import, Export, History, Ignore, Search, Undo, Redo}) {
+        for (const auto& entry : {Cut, Copy, Paste, Clear, Show, Edit, Add, Remove, Note, Swap, Status, Info, Load, Import, Export, History, Ignore, Search, Undo, Redo, Config}) {
             if (flagIsPresent<bool>(actions[entry], "--") || flagIsPresent<bool>(action_shortcuts[entry], "--") || flagIsPresent<bool>(actions.original(entry), "--")
                 || flagIsPresent<bool>(action_shortcuts.original(entry), "--")) {
                 return entry;
@@ -424,7 +427,7 @@ IOType getIOType() {
     if (action_is_one_of(Cut, Copy, Add)) {
         if (copying.items.size() >= 1 && std::all_of(copying.items.begin(), copying.items.end(), [](const auto& item) { return !fs::exists(item); })) return Text;
         if (!is_tty.in && copying.items.empty()) return Pipe;
-    } else if (action_is_one_of(Paste, Show, Clear, Edit, Status, Info, History, Search)) {
+    } else if (action_is_one_of(Paste, Show, Clear, Edit, Status, Info, History, Search, Config)) {
         if (!is_tty.out) return Pipe;
         return Text;
     } else if (action_is_one_of(Remove, Note, Ignore, Swap, Load, Import, Export)) {
@@ -492,8 +495,15 @@ void setFilepaths() {
                                                          : fs::temp_directory_path())
                             / constants.temporary_directory_name;
 
-    global_path.persistent =
-            (getenv("CLIPBOARD_PERSISTDIR") ? getenv("CLIPBOARD_PERSISTDIR") : (getenv("XDG_STATE_HOME") ? getenv("XDG_STATE_HOME") : global_path.home)) / constants.persistent_directory_name;
+    if (getenv("CLIPBOARD_PERSISTDIR")) {
+        global_path.persistent = getenv("CLIPBOARD_PERSISTDIR");
+    } else {
+        if (getenv("XDG_STATE_HOME")) {
+            global_path.persistent = getenv("XDG_STATE_HOME") / fs::path("clipboard");
+        } else {
+            global_path.persistent = global_path.home / constants.persistent_directory_name;
+        }
+    }
 
     path = Clipboard(clipboard_name, clipboard_entry);
 }
@@ -667,6 +677,8 @@ void performAction() {
             history();
         else if (action == Search)
             search();
+        else if (action == Config)
+            config();
         else
             complainAboutMissingAction("text");
     }

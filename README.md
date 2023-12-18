@@ -245,7 +245,7 @@ $ alias cb='snap run clipboard'
 ### <img src="documentation/readme-assets/InstallManually.png" alt="Install Manually" height=25px />
 You'll need CMake and C++20 support, and if you want X11 or Wayland support, you'll also need libx11 or libwayland plus Wayland Protocols respectively. If you're on Linux, you'll need ALSA.
 
-Get the latest release instead of the latest commit by adding `--branch 0.8.3` right after `git clone...`.
+Get the latest release instead of the latest commit by adding `--branch 0.9.0.1` right after `git clone...`.
 
 Change the system installation prefix by adding `-DCMAKE_INSTALL_PREFIX=/custom/prefix` to `cmake ..`, or the library install location by adding `-DCMAKE_INSTALL_LIBDIR=/custom/dir`.
 ```bash
@@ -1098,6 +1098,23 @@ $ cb status | cat
 
 <br>
 
+<details><summary> &ensp; <b>Check Your Configuration</b> &emsp; <code>cb [[--]config|cfg]</code></summary>
+
+<br>
+
+Check your configuration of CB.
+```sh
+$ cb config
+$ cb --config
+$ cb cfg
+$ cb --cfg
+# These all work great!
+```
+
+</details>
+
+<br>
+
 ### <img src="documentation/readme-assets/TipsAndTricks.png" alt="Tips And Tricks" height=25px />
 
 Need to paste a funky symbol somewhere a lot? Copy it to a persistent clipboard.
@@ -1641,7 +1658,7 @@ We're here for you! Check out [the Clipboard Project Wiki](https://github.com/Sl
 ### ![Thank You!](documentation/readme-assets/ThankYou.png)
 
 Say thank you to all our beautiful contributors who have helped make the Clipboard Project incredible[.](https://www.youtube.com/watch?v=yjdHGmRKz08)
- Want to join the club? We're always accepting [new contributions](https://github.com/Slackadays/Clipboard/blob/main/.github/CONTRIBUTING.md) too.
+ Want to join the club? We're always accepting [new contributions](https://github.com/Slackadays/Clipboard/blob/main/CONTRIBUTING.md) too.
 
 Special thanks to [MacStadium](https://www.macstadium.com/) for sponsoring the Clipboard Project by providing a Mac Mini for macOS development!
 
