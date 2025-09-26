@@ -56,10 +56,10 @@ jobs:
         arch:
 #          - { os: i386      , gcc: i686-linux-gnu         , needs_ports: "0" }
           - { os: amd64     , gcc: x86_64-linux-gnu       , needs_ports: "0" }
-          - { os: arm64     , gcc: aarch64-linux-gnu      , needs_ports: "1" }
-          - { os: riscv64   , gcc: riscv64-linux-gnu      , needs_ports: "1" }
+#          - { os: arm64     , gcc: aarch64-linux-gnu      , needs_ports: "1" }
+#          - { os: riscv64   , gcc: riscv64-linux-gnu      , needs_ports: "1" }
           - { os: armhf     , gcc: arm-linux-gnueabihf    , needs_ports: "1" }
-          - { os: ppc64el   , gcc: powerpc64le-linux-gnu  , needs_ports: "1" }
+#          - { os: ppc64el   , gcc: powerpc64le-linux-gnu  , needs_ports: "1" }
 #          - { os: s390x     , gcc: s390x-linux-gnu        , needs_ports: "1" }
 
     runs-on: ubuntu-22.04
@@ -95,6 +95,7 @@ jobs:
           sudo apt-get update || true
           sudo apt-get install -y \
             "${GPP_PACKAGE}" \
+            "linux-libc-dev:${{ matrix.arch.os }}" \
             "libx11-dev:${{ matrix.arch.os }}" \
             "libwayland-dev:${{ matrix.arch.os }}" \
             "wayland-protocols:${{ matrix.arch.os }}" \
