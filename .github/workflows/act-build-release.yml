@@ -96,6 +96,7 @@ jobs:
           sudo apt-get install -y \
             "${GPP_PACKAGE}" \
             "linux-libc-dev:${{ matrix.arch.os }}" \
+            "libssl-dev:${{ matrix.arch.os }}" \
             "libx11-dev:${{ matrix.arch.os }}" \
             "libwayland-dev:${{ matrix.arch.os }}" \
             "wayland-protocols:${{ matrix.arch.os }}" \
