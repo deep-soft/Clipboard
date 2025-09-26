@@ -25,6 +25,8 @@ add_executable(cb
   src/actions/swap.cpp
   src/actions/undo.cpp
   src/actions/redo.cpp
+  src/actions/script.cpp
+  src/actions/share.cpp
   src/locales/en_us.cpp
   src/locales/es_co.cpp
   src/locales/es_do.cpp
@@ -37,6 +39,8 @@ add_executable(cb
   src/utils/formatting.cpp
   src/utils/files.cpp
   src/utils/distance.cpp
+  src/utils/directorysize.cpp
+  src/utils/cowcopy.cpp
 )
 
 enable_lto(cb)
@@ -55,7 +59,11 @@ elseif(APPLE)
     src/platforms/macos.mm
   )
   target_link_libraries(cb "-framework AppKit")
-  target_compile_options(cb PRIVATE -fobjc-arc)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_ID MATCHES "AppleClang")
+    target_compile_options(cb PRIVATE -fobjc-arc)
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
+    target_compile_options(cb PRIVATE -fobjc-gc)
+  endif()
 elseif(HAIKU)
   target_sources(cb PRIVATE
     src/platforms/haiku.cpp

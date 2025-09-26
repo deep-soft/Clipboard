@@ -15,20 +15,22 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.*/
 #include "../clipboard.hpp"
 
-EnumArray<std::string_view, 21> actions = {"cut",  "copy", "paste",  "clear",  "show",    "edit",   "add",    "remove", "note", "swap",  "status",
-                                           "info", "load", "import", "export", "history", "ignore", "search", "undo",   "redo", "config"};
+EnumArray<std::string_view, 23> actions = {"cut",  "copy",   "paste",  "clear",   "show",   "edit",   "add",  "remove", "note",   "swap",   "status", "info",
+                                           "load", "import", "export", "history", "ignore", "search", "undo", "redo",   "config", "script", "share"};
 
-EnumArray<std::string_view, 21> action_shortcuts = {"ct", "cp", "p", "clr", "sh", "ed", "ad", "rm", "nt", "sw", "st", "in", "ld", "imp", "ex", "hs", "ig", "sr", "u", "r", "cfg"};
+EnumArray<std::string_view, 23> action_shortcuts = {"ct", "cp", "p", "clr", "sh", "ed", "ad", "rm", "nt", "sw", "st", "in", "ld", "imp", "ex", "hs", "ig", "sr", "u", "r", "cfg", "sc", "shr"};
 
-EnumArray<std::string_view, 21> doing_action = {"Cutting",   "Copying",         "Pasting",  "Clearing",        "Showing",      "Editing", "Adding",
-                                                "Removing",  "Noting",          "Swapping", "Checking status", "Showing info", "Loading", "Importing",
-                                                "Exporting", "Getting history", "Ignoring", "Searching",       "Undoing",      "Redoing", "Checking Configuration"};
+EnumArray<std::string_view, 23> doing_action = {"Cutting",        "Copying",          "Pasting",  "Clearing",        "Showing",      "Editing", "Adding",
+                                                "Removing",       "Noting",           "Swapping", "Checking status", "Showing info", "Loading", "Importing",
+                                                "Exporting",      "Getting history",  "Ignoring", "Searching",       "Undoing",      "Redoing", "Checking Configuration",
+                                                "Setting script", "Sharing clipboard"};
 
-EnumArray<std::string_view, 21> did_action = {"Cut",      "Copied",      "Pasted",  "Cleared",        "Showed",      "Edited", "Added",
-                                              "Removed",  "Noted",       "Swapped", "Checked status", "Showed info", "Loaded", "Imported",
-                                              "Exported", "Got history", "Ignored", "Searched",       "Undid",       "Redid",  "Checked Configuration"};
+EnumArray<std::string_view, 23> did_action = {"Cut",        "Copied",          "Pasted",  "Cleared",        "Showed",      "Edited", "Added",
+                                              "Removed",    "Noted",           "Swapped", "Checked status", "Showed info", "Loaded", "Imported",
+                                              "Exported",   "Got history",     "Ignored", "Searched",       "Undid",       "Redid",  "Checked Configuration",
+                                              "Set script", "Shared clipboard"};
 
-EnumArray<std::string_view, 21> action_descriptions = {
+EnumArray<std::string_view, 23> action_descriptions = {
         "Cut items into a clipboard.",
         "Copy items into a clipboard.",
         "Paste items from a clipboard.",
@@ -49,9 +51,11 @@ EnumArray<std::string_view, 21> action_descriptions = {
         "Search for items in a clipboard.",
         "Placeholder: Not implemented yet",
         "Placeholder: Not implemented yet",
-        "Show the configuration of CB."};
+        "Show the configuration of CB.",
+        "Set a script to run for this clipboard.",
+        "Share a clipboard with others."};
 
-Message help_message = "[info]┃ This is the Clipboard Project %s (commit %s), the cut, copy, and paste system for the command line.[blank]\n"
+Message help_message = "[info]┃ This is the Clipboard Project %s (commit %s, branch %s), the cut, copy, and paste system for the command line.[blank]\n"
                        "[info][bold]┃ Examples[blank]\n"
                        "[progress]┃ cb ct Nuclear_Launch_Codes.txt contactsfolder[blank] [help](This cuts the following items into the "
                        "default clipboard, 0.)[blank]\n"
@@ -68,7 +72,7 @@ Message help_message = "[info]┃ This is the Clipboard Project %s (commit %s), 
                        "[info]┃ You can also get more help in our Discord server at [bold]https://discord.gg/J6asnc3pEG[blank]\n"
                        "[info][bold]┃ All Actions Available[blank]\n"
                        "%s"
-                       "[info]┃ Copyright (C) 2023 Jackson Huff. Licensed under the GPLv3.[blank]\n"
+                       "[info]┃ Copyright (C) 2022-2024 Jackson Huff. Licensed under the GPLv3.[blank]\n"
                        "[info]┃ This program comes with ABSOLUTELY NO WARRANTY. This is free software, and you are welcome to "
                        "redistribute it under certain conditions.[blank]\n";
 Message check_clipboard_status_message = "[info][bold]All your clipboards with content[nobold]";

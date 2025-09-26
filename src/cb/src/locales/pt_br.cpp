@@ -94,7 +94,7 @@ void setLanguagePT() {
     action_descriptions[Ignore] = "Ignora um item ou itens do clipboard.";
     action_descriptions[Search] = "Busca um item ou itens do clipboard.";
 
-    help_message = "[info]┃ Este é Clipboard Project %s (commit %s), o sistema de recortar, copiar e colar para a linha de "
+    help_message = "[info]┃ Este é Clipboard Project %s (commit %s, branch %s), o sistema de recortar, copiar e colar para a linha de "
                    "comando.[blank]\n"
                    "[info][bold]┃ Como utilizar[blank]\n"
                    "[progress]┃ cb recortar (item) [itens][blank]\n"
@@ -108,7 +108,7 @@ void setLanguagePT() {
                    "-h[nobold], [bold]cb --help[nobold] ou[bold] cb help[nobold].\n"
                    "[info][bold]┃ All Actions Available[blank]\n"
                    "%s"
-                   "[info]┃ Copyright (C) 2023 Jackson Huff. Licensed under the GPLv3.[blank]\n"
+                   "[info]┃ Copyright (C) 2022-2024 Jackson Huff. Licensed under the GPLv3.[blank]\n"
                    "[info]┃ Este programa vem com ABSOLUTAMENTE NENHUMA GARANTIA. Este é um software livre, e você é "
                    "bem-vindo a redistribuí-lo sob certas condições.[blank]\n";
     no_valid_action_message = "[error][inverse] ✘ [noinverse] Você não especificou uma ação válida (\"%s\"), ou esqueceu de incluí-la. [help]⬤ Tente utilizar "

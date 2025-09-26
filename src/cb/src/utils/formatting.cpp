@@ -1,5 +1,5 @@
 /*  The Clipboard Project - Cut, copy, and paste anything, anytime, anywhere, all from the terminal.
-    Copyright (C) 2023 Jackson Huff and other contributors on GitHub.com
+    Copyright (C) 2024 Jackson Huff and other contributors on GitHub.com
     SPDX-License-Identifier: GPL-3.0-or-later
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.*/
 #include "../clipboard.hpp"
 
-#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__unix__)
+#if defined(UNIX_OR_UNIX_LIKE)
 struct termios tnormal;
 #elif defined(_WIN32) || defined(_WIN64)
 DWORD dwNormalMode = 0;
@@ -72,7 +72,7 @@ std::string makeControlCharactersVisible(const std::string_view& oldStr, size_t 
     const std::array<std::pair<char, std::string_view>, 8> replacementCharacters {
             {{'\n', "\\n"}, {'\r', "\\r"}, {'\a', "\\a"}, {'\b', "\\b"}, {'\f', "\\f"}, {'\t', "\\t"}, {'\v', "\\v"}, {'\0', "\\0"}}};
 
-    for (size_t i = 0; i < len - 1 && i < oldStr.size(); i++) {
+    for (size_t i = 0; i < len && i < oldStr.size(); i++) {
         bool matched = false;
         for (const auto& [character, replacement] : replacementCharacters) {
             if (oldStr[i] == character) {
@@ -82,6 +82,28 @@ std::string makeControlCharactersVisible(const std::string_view& oldStr, size_t 
             }
         }
         if (!matched) newStr += oldStr[i];
+    }
+
+    return newStr;
+}
+
+std::string removeExcessWhitespace(const std::string_view& oldStr, size_t len) {
+    std::string newStr;
+    newStr.reserve(oldStr.size());
+
+    if (len == 0) len = oldStr.size();
+
+    // Remove all whitespace that isn't a single space (2+ spaces, and tabs)
+    for (size_t i = 0; i < len && i < oldStr.size(); i++) {
+        if (oldStr[i] == ' ') {
+            newStr += ' ';
+            while (i + 1 < len && i + 1 < oldStr.size() && oldStr[i + 1] == ' ')
+                i++;
+        } else if (oldStr[i] == '\t') {
+            newStr += ' ';
+        } else {
+            newStr += oldStr[i];
+        }
     }
 
     return newStr;
@@ -125,10 +147,10 @@ std::string JSONescape(const std::string_view& input) {
             i++;
             break;
         default:
-            if (temp[i] < 32) {
+            if (static_cast<unsigned int>(temp[i]) < 32) {
                 std::stringstream ss;
                 ss.imbue(std::locale::classic()); // disable locale formatting for numbers, so 1000 doesn't become 1,000
-                ss << "\\u" << std::hex << std::setw(4) << std::setfill('0') << (int)temp[i];
+                ss << "\\u" << std::hex << std::setw(4) << std::setfill('0') << static_cast<unsigned int>(temp[i]);
                 temp.replace(i, 1, ss.str());
                 i += 5;
             }
@@ -164,7 +186,7 @@ TerminalSize thisTerminalSize() {
     CONSOLE_SCREEN_BUFFER_INFO csbi;
     GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi);
     temp = TerminalSize(csbi.srWindow.Bottom - csbi.srWindow.Top + 1, csbi.srWindow.Right - csbi.srWindow.Left + 1);
-#elif defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+#elif defined(UNIX_OR_UNIX_LIKE)
     struct winsize w;
     ioctl(STDERR_FILENO, TIOCGWINSZ, &w);
     temp = TerminalSize(w.ws_row, w.ws_col);
@@ -174,7 +196,7 @@ TerminalSize thisTerminalSize() {
 }
 
 void makeTerminalRaw() {
-#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__unix__)
+#if defined(UNIX_OR_UNIX_LIKE)
     struct termios tnew = tnormal;
     tnew.c_lflag &= ~(ICANON);
     tnew.c_lflag &= ~(ECHO);
@@ -186,7 +208,7 @@ void makeTerminalRaw() {
 }
 
 void makeTerminalNormal() {
-#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__unix__)
+#if defined(UNIX_OR_UNIX_LIKE)
     tcsetattr(STDIN_FILENO, TCSANOW, &tnormal);
 #elif defined(_WIN32) || defined(_WIN64)
     SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), dwNormalMode);
@@ -194,7 +216,7 @@ void makeTerminalNormal() {
 }
 
 void setupTerminal() {
-#if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__unix__)
+#if defined(UNIX_OR_UNIX_LIKE)
     tcgetattr(STDIN_FILENO, &tnormal);
 #elif defined(_WIN64) || defined(_WIN32)
     GetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), &dwNormalMode);

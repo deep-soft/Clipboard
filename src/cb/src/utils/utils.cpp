@@ -58,6 +58,8 @@ std::string maximumHistorySize;
 
 std::string preferred_mime;
 std::vector<std::string> available_mimes;
+std::vector<std::string> script_actions;
+std::vector<std::string> script_timings;
 
 std::vector<std::string> arguments;
 
@@ -84,7 +86,7 @@ std::mutex m;
 std::atomic<ClipboardState> clipboard_state;
 std::atomic<IndicatorState> progress_state;
 
-std::array<std::pair<std::string_view, std::string_view>, 10> colors = {
+std::array<std::pair<std::string_view, std::string>, 10> colors = {
         {{"[error]", "\033[38;5;196m"},    // red
          {"[success]", "\033[38;5;40m"},   // green
          {"[progress]", "\033[38;5;214m"}, // yellow
@@ -200,7 +202,7 @@ bool isAClearingAction() {
 
 bool needsANewEntry() {
     using enum Action;
-    return (action == Copy || action == Cut || (action == Clear && !all_option)) && clipboard_entry == constants.default_clipboard_entry;
+    return (action == Copy || action == Cut || (action == Clear && !all_option && copying.items.size() == 0)) && clipboard_entry == constants.default_clipboard_entry;
 }
 
 [[nodiscard]] CopyPolicy userDecision(const std::string& item) {
@@ -237,7 +239,7 @@ void setupHandlers() {
             FlushFileBuffers(CreateFileA(global_path.temporary.string().data(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
             FlushFileBuffers(CreateFileA(global_path.persistent.string().data(), GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL));
         }
-#elif defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__unix__)
+#elif defined(UNIX_OR_UNIX_LIKE)
         if (isAWriteAction()) {
             fsync(open(global_path.temporary.string().data(), O_RDONLY));
             fsync(open(global_path.persistent.string().data(), O_RDONLY));
@@ -245,10 +247,10 @@ void setupHandlers() {
 #endif
     });
 
-    signal(SIGINT, [](int) {
+    auto exitCleanly = [](int) {
         fprintf(stderr, "%s", formatColors("[blank]").data());
         if (!stopIndicator(false)) {
-            // Indicator thread is not currently running. TODO: Write an unbuffered newline, and maybe a cancelation
+            // Indicator thread is not currently running. TODO: Write an unbuffered newline, and maybe a cancellation
             // message, directly to standard error. Note: There is no standard C++ interface for this, so this requires
             // an OS call.
             path.releaseLock();
@@ -257,7 +259,13 @@ void setupHandlers() {
             indicator.join();
             exit(EXIT_FAILURE);
         }
-    });
+    };
+
+    signal(SIGINT, exitCleanly);
+    signal(SIGTERM, exitCleanly);
+#if defined(UNIX_OR_UNIX_LIKE)
+    signal(SIGQUIT, exitCleanly);
+#endif
 
     forker.atFork([]() {
         // As the indicator thread still exists in memory in the forked process,
@@ -313,7 +321,7 @@ void verifyClipboardName() {
     constexpr std::array forbiddenFilenameCharacters {'<', '>', ':', '"', '/', '\\', '|', '?', '*'};
 #elif defined(__APPLE__)
     constexpr std::array forbiddenFilenameCharacters {'/', ':'};
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__unix__)
+#elif defined(__linux__) || defined(__unix__) || defined(__HAIKU__)
     constexpr std::array forbiddenFilenameCharacters {'/'};
 #else
     constexpr std::array forbiddenFilenameCharacters {};
@@ -377,7 +385,10 @@ void setupVariables(int& argc, char* argv[]) {
 
     arguments.assign(argv + 1, argv + argc);
 
-    clipboard_invocation = argv[0];
+    if (argv[0][0])
+        clipboard_invocation = argv[0];
+    else
+        clipboard_invocation = "cb";
 }
 
 template <typename T>
@@ -407,7 +418,7 @@ template <typename T>
 Action getAction() {
     using enum Action;
     if (arguments.size() >= 1) {
-        for (const auto& entry : {Cut, Copy, Paste, Clear, Show, Edit, Add, Remove, Note, Swap, Status, Info, Load, Import, Export, History, Ignore, Search, Undo, Redo, Config}) {
+        for (const auto& entry : {Cut, Copy, Paste, Clear, Show, Edit, Add, Remove, Note, Swap, Status, Info, Load, Import, Export, History, Ignore, Search, Undo, Redo, Config, Script}) {
             if (flagIsPresent<bool>(actions[entry], "--") || flagIsPresent<bool>(action_shortcuts[entry], "--") || flagIsPresent<bool>(actions.original(entry), "--")
                 || flagIsPresent<bool>(action_shortcuts.original(entry), "--")) {
                 return entry;
@@ -441,10 +452,10 @@ Action getAction() {
 IOType getIOType() {
     using enum Action;
     using enum IOType;
-    if (action_is_one_of(Cut, Copy, Add)) {
+    if (action_is_one_of(Cut, Copy, Add, Script)) {
         if (copying.items.size() >= 1 && std::all_of(copying.items.begin(), copying.items.end(), [](const auto& item) { return !fs::exists(item); })) return Text;
         if (!is_tty.in && copying.items.empty()) return Pipe;
-    } else if (action_is_one_of(Paste, Show, Clear, Edit, Status, Info, History, Search, Config)) {
+    } else if (action_is_one_of(Paste, Show, Clear, Edit, Status, Info, History, Search, Config, Share)) {
         if (!is_tty.out) return Pipe;
         return Text;
     } else if (action_is_one_of(Remove, Note, Ignore, Swap, Load, Import, Export)) {
@@ -459,6 +470,8 @@ void setFlags() {
     if (flagIsPresent<bool>("--fast-copy") || flagIsPresent<bool>("-fc")) copying.use_safe_copy = false;
     if (auto flag = flagIsPresent<std::string>("--mime"); flag != "") preferred_mime = flag;
     if (auto flag = flagIsPresent<std::string>("-m"); flag != "") preferred_mime = flag;
+    if (auto flag = flagIsPresent<std::string>("--actions"); flag != "") script_actions = regexSplit(flag, std::regex(","));
+    if (auto flag = flagIsPresent<std::string>("--timings"); flag != "") script_timings = regexSplit(flag, std::regex(","));
     if (flagIsPresent<bool>("--no-progress") || flagIsPresent<bool>("-np")) progress_silent = true;
     if (flagIsPresent<bool>("--no-confirmation") || flagIsPresent<bool>("-nc")) confirmation_silent = true;
     if (flagIsPresent<bool>("--secret") || flagIsPresent<bool>("-s")) secret_selection = true;
@@ -493,7 +506,7 @@ void setFlags() {
                     .append(action_descriptions[static_cast<Action>(i)])
                     .append("[blank]\n");
         }
-        printf(help_message().data(), constants.clipboard_version.data(), constants.clipboard_commit.data(), formatColors(actionsList).data());
+        printf(help_message().data(), constants.clipboard_version.data(), constants.clipboard_commit.data(), constants.clipboard_branch.data(), formatColors(actionsList).data());
         exit(EXIT_SUCCESS);
     }
 }
@@ -564,7 +577,7 @@ void checkForNoItems() {
     if (action_is_one_of(Cut, Copy, Add, Remove) && io_type != IOType::Pipe && copying.items.size() < 1) {
         error_exit(choose_action_items_message(), actions[action], actions[action], clipboard_invocation, actions[action]);
     }
-    if (((action_is_one_of(Paste, Show) || (action == Clear && !all_option))) && (!fs::exists(path.data) || fs::is_empty(path.data))) {
+    if (((action_is_one_of(Paste, Show) || (action == Clear && !all_option && copying.items.size() == 0))) && (!fs::exists(path.data) || fs::is_empty(path.data))) {
         PerformAction::status();
         exit(EXIT_SUCCESS);
     }
@@ -604,19 +617,22 @@ void checkItemSize(unsigned long long total_item_size) {
     }
 }
 
-void removeOldFiles() {
+void removeOldFiles(const std::vector<std::string>& exclusions) {
     if (!fs::is_regular_file(path.metadata.originals)) return;
     std::ifstream files(path.metadata.originals);
     std::string line;
     while (std::getline(files, line)) {
+        if (auto res = std::find(exclusions.begin(), exclusions.end(), fs::path(line).filename().string()); res != exclusions.end()) continue;
         try {
             fs::remove_all(line);
+            fs::remove_all(path.data / fs::path(line).filename());
         } catch (const fs::filesystem_error& e) {
             copying.failedItems.emplace_back(line, e.code());
         }
     }
     files.close();
     if (copying.failedItems.empty()) fs::remove(path.metadata.originals);
+    updateExternalClipboards(true);
 }
 
 void performAction() {
@@ -631,6 +647,8 @@ void performAction() {
             copy();
         else if (action == Add)
             addFiles();
+        else if (action == Script)
+            script();
         else
             complainAboutMissingAction("file");
     } else if (io_type == Pipe) {
@@ -658,6 +676,8 @@ void performAction() {
             historyJSON();
         else if (action == Search)
             searchJSON();
+        else if (action == Script)
+            script();
         else
             complainAboutMissingAction("pipe");
     } else if (io_type == Text) {
@@ -697,6 +717,8 @@ void performAction() {
             search();
         else if (action == Config)
             config();
+        else if (action == Script)
+            script();
         else
             complainAboutMissingAction("text");
     }

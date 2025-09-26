@@ -24,6 +24,7 @@ std::vector<Clipboard> clipboardsWithContent() {
     for (const auto& entry : fs::directory_iterator(global_path.persistent))
         if (auto cb = Clipboard(entry.path().filename().string()); cb.holdsDataInCurrentEntry()) clipboards.emplace_back(cb);
     std::sort(clipboards.begin(), clipboards.end(), [](const auto& a, const auto& b) { return a.name() < b.name(); });
+    clipboards.erase(std::unique(clipboards.begin(), clipboards.end(), [](const auto& a, const auto& b) { return a.name() == b.name(); }), clipboards.end());
     return clipboards;
 }
 
@@ -59,7 +60,8 @@ void status() {
             if (auto type = inferMIMEType(content); type.has_value())
                 content = "\033[7m\033[1m " + std::string(type.value()) + ", " + formatBytes(content.length()) + " \033[22m\033[27m";
             else
-                content = makeControlCharactersVisible(content, available.columns);
+                content = removeExcessWhitespace(content, available.columns * 2);
+            content = makeControlCharactersVisible(content, available.columns);
             fprintf(stderr, formatColors("[help]%s[blank]\n").data(), content.substr(0, widthRemaining).data());
             clipboard.releaseLock();
             continue;

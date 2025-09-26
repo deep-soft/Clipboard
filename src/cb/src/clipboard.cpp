@@ -1,5 +1,5 @@
 /*  The Clipboard Project - Cut, copy, and paste anything, anytime, anywhere, all from the terminal.
-    Copyright (C) 2023 Jackson Huff and other contributors on GitHub.com
+    Copyright (C) 2024 Jackson Huff and other contributors on GitHub.com
     SPDX-License-Identifier: GPL-3.0-or-later
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.*/
 #include "clipboard.hpp"
+#include <charconv>
 #include <openssl/sha.h>
 
 Clipboard::Clipboard(const std::string& clipboard_name, const unsigned long& clipboard_entry) {
@@ -41,14 +42,19 @@ Clipboard::Clipboard(const std::string& clipboard_name, const unsigned long& cli
     data.raw = data / constants.data_file_name;
 
     metadata = root / constants.metadata_directory;
-    metadata.notes = metadata / constants.notes_name;
-    metadata.originals = metadata / constants.original_files_name;
-    metadata.lock = metadata / constants.lock_name;
     metadata.ignore = metadata / constants.ignore_regex_name;
     metadata.ignore_secret = metadata / constants.ignore_secret_name;
+    metadata.lock = metadata / constants.lock_name;
+    metadata.notes = metadata / constants.notes_name;
+    metadata.originals = metadata / constants.original_files_name;
+    metadata.script = metadata / constants.script_name;
+    metadata.script_config = metadata / constants.script_config_name;
+    metadata.version = metadata / constants.storage_protocol_version_name;
 
     fs::create_directories(data);
     fs::create_directories(metadata);
+
+    writeToFile(metadata.version, std::string(constants.storage_protocol_version));
 }
 
 std::deque<unsigned long> Clipboard::generatedEntryIndex() {
@@ -56,15 +62,14 @@ std::deque<unsigned long> Clipboard::generatedEntryIndex() {
     std::deque<unsigned long> pathNames;
     fs::path entriesDir = root / constants.data_directory;
     fs::create_directories(entriesDir);
-#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+#if defined(UNIX_OR_UNIX_LIKE)
     auto dirptr = opendir(entriesDir.string().data());
-    char* endptr = nullptr;
     errno = 0;
-    for (auto* dir = readdir(dirptr); dir != nullptr; dir = readdir(dirptr), errno = 0)
-        if (auto num = strtoul(dir->d_name, &endptr, 10); errno == 0 && endptr != dir->d_name) [[likely]]
-            pathNames.emplace_back(num);
-        else [[unlikely]]
-            continue;
+    for (auto* dir = readdir(dirptr); dir != nullptr; dir = readdir(dirptr), errno = 0) {
+        pathNames.emplace_back(0);
+        if (auto [ptr, ec] = std::from_chars(dir->d_name, dir->d_name + strlen(dir->d_name), pathNames.back()); ec != std::errc()) [[unlikely]]
+            pathNames.pop_back();
+    }
 #else
     for (const auto& entry : fs::directory_iterator(entriesDir))
         try {
@@ -159,7 +164,7 @@ bool Clipboard::isUnused() {
 void Clipboard::getLock() {
     if (isLocked()) {
         auto pid = std::stoi(fileContents(metadata.lock).value());
-#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+#if defined(UNIX_OR_UNIX_LIKE)
         if (getpgrp() == getpgid(pid)) return; // if we're in the same process group, we're probably in a self-referencing pipe like cb | cb
 #elif defined(_WIN32) || defined(_WIN64)
         if (GetCurrentProcessId() == pid) return;
@@ -167,11 +172,11 @@ void Clipboard::getLock() {
         while (true) {
 #if defined(_WIN32) || defined(_WIN64)
             if (WaitForSingleObject(OpenProcess(SYNCHRONIZE, FALSE, pid), 0) == WAIT_OBJECT_0) break;
-#elif defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+#elif defined(UNIX_OR_UNIX_LIKE)
             if (kill(pid, 0) == -1) break;
 #endif
             if (!isLocked()) break;
-            std::this_thread::sleep_for(std::chrono::milliseconds(250));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
     writeToFile(metadata.lock, std::to_string(thisPID()));
@@ -267,7 +272,7 @@ void Clipboard::trimHistoryEntries() {
 
     if (maximumSeconds > 0) {
         auto now = std::chrono::system_clock::now();
-#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+#if defined(UNIX_OR_UNIX_LIKE)
         struct stat info;
         auto lastModified = [&](const fs::path path) {
             if (stat(path.string().data(), &info) != 0) return now;

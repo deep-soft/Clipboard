@@ -1,9 +1,6 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 
-#make a universal binary on macOS
-set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE)
-
-project(Clipboard LANGUAGES CXX C VERSION 0.9.0)
+project(Clipboard LANGUAGES CXX C VERSION 0.10.1)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
@@ -42,10 +39,20 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  # If the user does not specify NO_ALSA, check for the package, and THEN set the definition
+  # so the build doesn't fail.
   if (NOT NO_ALSA)
-    find_package(ALSA REQUIRED)
-    add_definitions(-DUSE_ALSA)
+    find_package(ALSA)
+    if (ALSA_FOUND)
+      add_definitions(-DUSE_ALSA)
+      message(STATUS "Building the Clipboard Project with ALSA support.")
+    else()
+      message(STATUS "ALSA Library not found, building the Clipboard Project without ALSA support.")
+    endif()
+  else()
+    message(STATUS "Building the Clipboard Project without ALSA support.")
   endif()
+
   #find_path(LIBURING_INCLUDE_DIR liburing.h)
   #if (LIBURING_INCLUDE_DIR)
   #  message(STATUS "Building the Clipboard Project with io_uring support")
@@ -99,14 +106,14 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL ${LIB_LOCATION})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${BIN_LOCATION})
 
 function(enable_lto this_target)
-include(CheckIPOSupported)
-check_ipo_supported(RESULT lto_supported)
-if(lto_supported AND NOT NO_LTO)
-  set_property(TARGET ${this_target} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
-  if(CMAKE_COMPILER_IS_GNUCXX)
-    list(APPEND CMAKE_CXX_COMPILE_OPTIONS_IPO "-flto=auto") # set the thread amount to what is available on the CPU
+  include(CheckIPOSupported)
+  check_ipo_supported(RESULT lto_supported)
+  if(lto_supported AND NOT NO_LTO)
+    set_property(TARGET ${this_target} PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    if(CMAKE_COMPILER_IS_GNUCXX)
+      list(APPEND CMAKE_CXX_COMPILE_OPTIONS_IPO "-flto=auto") # set the thread amount to what is available on the CPU
+    endif()
   endif()
-endif()
 endfunction()
 
 add_subdirectory(src/gui)

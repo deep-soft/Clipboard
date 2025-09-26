@@ -1,5 +1,5 @@
 /*  The Clipboard Project - Cut, copy, and paste anything, anytime, anywhere, all from the terminal.
-    Copyright (C) 2023 Jackson Huff and other contributors on GitHub.com
+    Copyright (C) 2024 Jackson Huff and other contributors on GitHub.com
     SPDX-License-Identifier: GPL-3.0-or-later
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -42,7 +42,12 @@
 #include "platforms/windows.hpp"
 #endif
 
-#if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+#if defined(__linux__) || defined(__unix__) || defined(__APPLE__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(__HAIKU__) || defined(__FreeBSD__) \
+        || defined(__posix__)
+#define UNIX_OR_UNIX_LIKE
+#endif
+
+#if defined(UNIX_OR_UNIX_LIKE)
 #include <cstring>
 #include <dirent.h>
 #include <fcntl.h>
@@ -56,6 +61,10 @@ namespace fs = std::filesystem;
 
 #if !defined(GIT_COMMIT_HASH)
 #define GIT_COMMIT_HASH "not available"
+#endif
+
+#if !defined(GIT_BRANCH)
+#define GIT_BRANCH "not available"
 #endif
 
 #if !defined(CLIPBOARD_VERSION)
@@ -77,24 +86,36 @@ extern GlobalFilepaths global_path;
 struct Constants {
     std::string_view clipboard_version = CLIPBOARD_VERSION;
     std::string_view clipboard_commit = GIT_COMMIT_HASH;
+    std::string_view clipboard_branch = GIT_BRANCH;
     std::string_view data_file_name = "rawdata.clipboard";
-    std::string_view default_clipboard_name = "0";
-    unsigned long default_clipboard_entry = 0;
-    std::string_view temporary_directory_name = "Clipboard";
     std::string_view persistent_directory_name = ".local/state/clipboard";
     std::string_view original_files_name = "originals";
     std::string_view notes_name = "notes";
     std::string_view mime_name = "mime";
+    std::string_view ignore_regex_name = "ignore";
+    std::string_view ignore_secret_name = "ignore.secret";
     std::string_view lock_name = "lock";
+    std::string_view script_name = "script";
+    std::string_view script_config_name = "script.config";
     std::string_view data_directory = "data";
     std::string_view metadata_directory = "metadata";
     std::string_view import_export_directory = "Exported_Clipboards";
-    std::string_view ignore_regex_name = "ignore";
-    std::string_view ignore_secret_name = "ignore.secret";
+    std::string_view temporary_directory_name = "Clipboard";
+    std::string_view default_clipboard_name = "0";
+    std::string_view storage_protocol_version_name = "version";
+
+    unsigned long default_clipboard_entry = 0;
+    std::string_view storage_protocol_version = "1";
 };
 constexpr Constants constants;
 
-enum class CopyPolicy { ReplaceAll, ReplaceOnce, SkipOnce, SkipAll, Unknown };
+enum class CopyPolicy {
+    ReplaceAll,
+    ReplaceOnce,
+    SkipOnce,
+    SkipAll,
+    Unknown
+};
 
 struct Copying {
     bool use_safe_copy = true;
@@ -123,34 +144,13 @@ bool isPersistent(const auto& clipboard) {
 static auto thisPID() {
 #if defined(_WIN32) || defined(_WIN64)
     return GetCurrentProcessId();
-#elif defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+#elif defined(UNIX_OR_UNIX_LIKE)
     return getpid();
 #endif
 }
 
-static size_t directoryOverhead(const fs::path& directory) {
-#if defined(__linux__) || defined(__unix__) || defined(__APPLE__) || defined(__FreeBSD__)
-    struct stat info;
-    if (stat(directory.string().data(), &info) != 0) return 0;
-    return info.st_size;
-#else
-    return 0;
-#endif
-}
-
-static size_t totalDirectorySize(const fs::path& directory) {
-    size_t size = directoryOverhead(directory);
-    for (const auto& entry : fs::recursive_directory_iterator(directory))
-        try {
-            size += entry.is_directory() ? directoryOverhead(entry) : entry.file_size();
-        } catch (const fs::filesystem_error& e) {
-            if (e.code() != std::errc::no_such_file_or_directory) throw e;
-        }
-    return size;
-}
-
 std::optional<std::string> fileContents(const fs::path& path);
-std::vector<std::string> fileLines(const fs::path& path);
+std::vector<std::string> fileLines(const fs::path& path, bool includeEmptyLines = false);
 
 bool stopIndicator(bool change_condition_variable = true);
 
@@ -182,9 +182,19 @@ extern bool secret_selection;
 
 extern std::string preferred_mime;
 extern std::vector<std::string> available_mimes;
+extern std::vector<std::string> script_actions;
+extern std::vector<std::string> script_timings;
 
-enum class ClipboardState : int { Setup, Action, Error };
-enum class IndicatorState : int { Done, Active, Cancel };
+enum class ClipboardState : int {
+    Setup,
+    Action,
+    Error
+};
+enum class IndicatorState : int {
+    Done,
+    Active,
+    Cancel
+};
 
 extern std::condition_variable cv;
 extern std::mutex m;
@@ -214,11 +224,39 @@ struct IsTTY {
 };
 extern IsTTY is_tty;
 
-enum class Action : unsigned int { Cut, Copy, Paste, Clear, Show, Edit, Add, Remove, Note, Swap, Status, Info, Load, Import, Export, History, Ignore, Search, Undo, Redo, Config };
+enum class Action : unsigned int {
+    Cut,
+    Copy,
+    Paste,
+    Clear,
+    Show,
+    Edit,
+    Add,
+    Remove,
+    Note,
+    Swap,
+    Status,
+    Info,
+    Load,
+    Import,
+    Export,
+    History,
+    Ignore,
+    Search,
+    Undo,
+    Redo,
+    Config,
+    Script,
+    Share
+};
 
 extern Action action;
 
-enum class IOType : unsigned int { File, Pipe, Text };
+enum class IOType : unsigned int {
+    File,
+    Pipe,
+    Text
+};
 
 extern IOType io_type;
 
@@ -235,13 +273,13 @@ public:
     T& original(const Action& index) { return internal_original.value()[static_cast<unsigned int>(index)]; }
 };
 
-extern EnumArray<std::string_view, 21> actions;
-extern EnumArray<std::string_view, 21> action_shortcuts;
-extern EnumArray<std::string_view, 21> doing_action;
-extern EnumArray<std::string_view, 21> did_action;
-extern EnumArray<std::string_view, 21> action_descriptions;
+extern EnumArray<std::string_view, 23> actions;
+extern EnumArray<std::string_view, 23> action_shortcuts;
+extern EnumArray<std::string_view, 23> doing_action;
+extern EnumArray<std::string_view, 23> did_action;
+extern EnumArray<std::string_view, 23> action_descriptions;
 
-extern std::array<std::pair<std::string_view, std::string_view>, 10> colors;
+extern std::array<std::pair<std::string_view, std::string>, 10> colors;
 
 bool action_is_one_of(auto... options) {
     return ((action == options) || ...);
@@ -282,11 +320,14 @@ public:
         fs::path root;
 
     public:
-        fs::path notes;
-        fs::path originals;
-        fs::path lock;
         fs::path ignore;
         fs::path ignore_secret;
+        fs::path lock;
+        fs::path notes;
+        fs::path originals;
+        fs::path script;
+        fs::path script_config;
+        fs::path version;
         operator fs::path() { return root; }
         operator fs::path() const { return root; }
         auto operator=(const auto& other) { return root = other; }
@@ -310,7 +351,17 @@ public:
     std::vector<std::string> ignoreSecrets();
     void applyIgnoreRules();
     bool isUnused();
-    bool isLocked() { return fs::exists(metadata.lock); }
+    bool isLocked() {
+        if (!fs::is_regular_file(metadata.lock)) {
+            if (fs::exists(metadata.lock)) // Handle the case where the lock file is not a regular file
+                fs::remove(metadata.lock);
+            return false;
+        }
+        // auto pid = std::stoi(fileContents(metadata.lock).value());
+        // Check if the PID
+
+        return true;
+    }
     void getLock();
     void releaseLock() { fs::remove(metadata.lock); }
     std::string name() const { return this_name; }
@@ -339,7 +390,7 @@ public:
 };
 
 std::string formatNumbers(const auto& num) {
-    static std::stringstream ss;
+    thread_local static std::stringstream ss;
     ss.str(std::string());
     ss << std::fixed << std::setprecision(2) << num;
     return ss.str();
@@ -363,7 +414,8 @@ size_t columnLength(const std::string_view& message);
 std::string generatedEndbar();
 std::string repeatString(const std::string_view& character, const size_t& length);
 std::string makeControlCharactersVisible(const std::string_view& oldStr, size_t len = 0);
-unsigned long levenshteinDistance(const std::string_view& one, const std::string_view& two);
+std::string removeExcessWhitespace(const std::string_view& str, size_t len = 0);
+size_t levenshteinDistance(const std::string_view& one, const std::string_view& two);
 void setLanguagePT();
 void setLanguageTR();
 void setLanguageES_CO();
@@ -406,7 +458,7 @@ void checkItemSize();
 TerminalSize thisTerminalSize();
 void clearData(bool force_clear);
 void copyFiles();
-void removeOldFiles();
+void removeOldFiles(const std::vector<std::string>& exclusions = {});
 bool userIsARobot();
 void pasteFiles();
 void clearClipboard();
@@ -417,6 +469,10 @@ void showFailures();
 void showSuccesses();
 [[nodiscard]] CopyPolicy userDecision(const std::string& item);
 void setTheme(const std::string_view& theme);
+size_t totalDirectorySize(const fs::path& directory);
+size_t directoryOverhead(const fs::path& directory);
+void runClipboardScript();
+void checkClipboardScriptEligibility();
 
 extern Message help_message;
 extern Message check_clipboard_status_message;
@@ -499,4 +555,6 @@ void historyJSON();
 void search();
 void searchJSON();
 void config();
+void script();
+void share();
 } // namespace PerformAction
